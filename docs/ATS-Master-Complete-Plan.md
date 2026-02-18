@@ -103,14 +103,17 @@ A platform that:
 #### 12. **Credential Verification Agent** (LangGraph-based)
 - **Autonomous Web Scraping & Verification:**
   - Scrape GitHub profiles → verify public repos, commit history, code quality
+  - **Resume Project Verification** → Validate projects mentioned in resume exist on GitHub with public URLs
   - Analyze LinkedIn profile → validate job history, endorsements, consistency
   - Verify portfolio links → check if live/hosted, projects functional
   - Validate deployment URLs → ensure projects are live and accessible
   - Open-source contributions → track impact (stars, forks, downloads)
+  - Competitive Programming profiles → verify LeetCode, Codeforces, CodeChef rankings, problem-solving skills
+  - **Project Authenticity Check** → Verify commit history, contribution patterns, project activity
   
 #### 13. **Agent Decision-Making Loop (ReAct Pattern)**
 - **Observe:** Fetch resume data + credential links
-- **Think:** Decide which platforms to verify (GitHub, LinkedIn, Portfolio, etc.)
+- **Think:** Decide which platforms to verify (GitHub, LinkedIn, Portfolio, CP platforms, etc.)
 - **Act:** Autonomously visit URLs, scrape data, validate information
 - **Observe:** Analyze results for authenticity & consistency
 - **Decide:** Generate credibility signals
@@ -118,17 +121,22 @@ A platform that:
 #### 14. **Credibility Intelligence Report**
 - **Resume Consistency Score** - How well credentials align with resume claims
 - **GitHub Strength Score** - Code quality, contribution frequency, popular projects
+- **Project Verification Score** - Resume projects match GitHub repositories, commit authenticity, public accessibility
 - **LinkedIn Authenticity Score** - Profile completeness, verification badges, recommendations
 - **Portfolio Quality Score** - Working projects, production deployments, technical depth
+- **Competitive Programming Score** - Problem-solving ability, contest ratings, consistency, difficulty level
 - **Overall Credibility Score** - Combined metric incorporating all verification factors
-- **Risk Indicators** - Flags for inconsistencies or red flags
+- **Risk Indicators** - Flags for inconsistencies, missing project URLs, private repos, or red flags
 
 #### 15. **Candidate Intelligence Dashboard**
 - Side-by-side resume vs verified credentials
 - Strength areas (aligned between resume & verified data)
 - Misalignment flags (resume claims not supported by profiles)
+- **Project Verification Status** - Resume projects vs GitHub repos (verified/missing/private)
 - Real-world project showcase (GitHub projects, live portfolio items)
 - Community impact metrics (open-source contributions)
+- Competitive programming metrics (contest ratings, problems solved, rank progression)
+- **Project Authenticity Indicators** - Commit frequency, code ownership, collaboration patterns
 - Verification timeline (when each credential was last verified)
 
 ---
@@ -205,6 +213,12 @@ GitHub API (Data Extraction)
 ├─ Contribution metrics
 └─ Public profile data
 
+Competitive Programming APIs
+├─ LeetCode API (GraphQL)
+├─ Codeforces API (REST)
+├─ CodeChef API (REST)
+└─ HackerRank scraping
+
 Redis (Caching)
 ├─ Result caching
 ├─ Session management
@@ -275,13 +289,31 @@ Docker (optional containerization)
     "skills": [],
     "experience": [],
     "education": [],
-    "certifications": []
+    "certifications": [],
+    "projects": [
+      {
+        "name": "",
+        "description": "",
+        "technologies": [],
+        "githubUrl": "",
+        "liveUrl": ""
+      }
+    ],
+    "links": {
+      "github": "",
+      "linkedin": "",
+      "portfolio": "",
+      "leetcode": "",
+      "codeforces": ""
+    }
   }
   ```
 - ✅ Implement error handling and validation
 - ✅ Store parsed data in MongoDB
+- ✅ **Extract project information with GitHub URLs**
+- ✅ **Parse and validate all profile links (GitHub, LinkedIn, LeetCode, etc.)**
 
-**Deliverable:** Backend endpoints for resume upload, parsing, and storage
+**Deliverable:** Backend endpoints for resume upload, parsing, storage with project extraction
 
 ---
 
@@ -423,24 +455,31 @@ Docker (optional containerization)
 ### **Week 13: Setup Agent Framework** (8-10 hrs)
 - [ ] Install LangGraph, Firecrawl, Selenium, Puppeteer
 - [ ] Set up agent state management
-- [ ] Configure tool definitions
+- [ ] Configure tool definitions (GitHub API, LeetCode API, web scrapers)
 - [ ] Create base agent class
 - [ ] Set up Redis caching
 - [ ] Implement rate limiting
+- [ ] Configure CP platform API integrations (LeetCode, Codeforces, CodeChef)
+- [ ] **Setup GitHub project verification tool** (extract projects from resume, match with GitHub repos)
 
-**Deliverable:** Agent framework ready, tools registered
+**Deliverable:** Agent framework ready, tools registered, CP APIs configured, project verification tool ready
 
 ---
 
-### **Week 14: Build GitHub & LinkedIn Agents** (10-12 hrs)
+### **Week 14: Build GitHub, LinkedIn & CP Agents** (10-12 hrs)
 
 #### GitHub Agent
 - [ ] GitHub API authentication
 - [ ] Scrape repository metadata
+- [ ] **Resume Project Verification** - Match resume projects with GitHub repos
+- [ ] **Project URL Validation** - Verify all project links are public and accessible
+- [ ] **Commit Authenticity Analysis** - Analyze commit patterns, authorship, frequency
+- [ ] **Technology Stack Verification** - Match claimed skills with actual code
 - [ ] Extract contribution history
 - [ ] Calculate code quality score
-- [ ] Analyze technology stack
+- [ ] Analyze project complexity and impact (stars, forks, issues)
 - [ ] Measure follower metrics
+- [ ] **Flag inconsistencies** - Projects claimed but not found, private repos
 
 #### LinkedIn Agent
 - [ ] LinkedIn profile scraping (Firecrawl)
@@ -450,9 +489,26 @@ Docker (optional containerization)
 - [ ] Connection count tracking
 - [ ] Verification badge checking
 
-**Test:** 20+ real profiles
+#### Competitive Programming Agent
+- [ ] LeetCode profile scraping (API/web scraping)
+- [ ] Codeforces rating & contest history
+- [ ] CodeChef ranking & problem stats
+- [ ] HackerRank profile analysis
+- [ ] Problem difficulty distribution
+- [ ] Contest participation frequency
+- [ ] Skill rating calculation (DSA, algorithms)
+- [ ] Consistency score (active vs idle periods)
 
-**Deliverable:** GitHub & LinkedIn agents fully functional
+**Test:** 20+ real profiles across all platforms
+
+**Additional Testing for Project Verification:**
+- [ ] Test with resumes containing 5-10 projects each
+- [ ] Verify matching accuracy between resume and GitHub
+- [ ] Test with private/missing project scenarios
+- [ ] Validate commit authenticity detection
+- [ ] Test technology stack matching
+
+**Deliverable:** GitHub, LinkedIn & CP agents fully functional with project verification
 
 ---
 
@@ -475,14 +531,14 @@ Docker (optional containerization)
 - [ ] Reputation building
 
 #### Supervisor Agent
-- [ ] Orchestrate all 4 agents
+- [ ] Orchestrate all 5 agents (GitHub, LinkedIn, Portfolio, CP, OpenSource)
 - [ ] Parallel execution management
 - [ ] Result aggregation
 - [ ] Error handling & retries
 
 **Test:** End-to-end verification with 50+ candidates
 
-**Deliverable:** All 4 agents working in parallel orchestration
+**Deliverable:** All 5 agents working in parallel orchestration
 
 ---
 
@@ -529,7 +585,22 @@ Docker (optional containerization)
       company: String,
       position: String,
       duration: String,
-      description: String
+      description: String,
+      projects: [{
+        name: String,
+        description: String,
+        technologies: [String],
+        githubUrl: String,
+        liveUrl: String
+      }]
+    }],
+    projects: [{
+      name: String,
+      description: String,
+      technologies: [String],
+      githubUrl: String,
+      liveUrl: String,
+      role: String
     }],
     education: [{
       institution: String,
@@ -540,7 +611,13 @@ Docker (optional containerization)
     certifications: [String],
     githubUrl: String,
     linkedinUrl: String,
-    portfolioUrl: String
+    portfolioUrl: String,
+    competitiveProgramming: {
+      leetcodeUrl: String,
+      codeforcesUrl: String,
+      codechefUrl: String,
+      hackerrankUrl: String
+    }
   },
   createdAt: Date,
   updatedAt: Date
@@ -596,16 +673,46 @@ Docker (optional containerization)
   credibilityScore: Number (0-100),
   componentScores: {
     github: Number,
+    projectVerification: Number,
     linkedin: Number,
     portfolio: Number,
+    competitiveProgramming: Number,
     opensource: Number
   },
   riskFlags: [String],
   verificationDetails: {
-    github: { repos, stars, commits, languages },
+    github: { 
+      repos, stars, commits, languages,
+      projectVerification: [
+        {
+          projectName: String,
+          resumeClaimed: Boolean,
+          githubUrl: String,
+          isPublic: Boolean,
+          commitCount: Number,
+          lastCommit: Date,
+          technologies: [String],
+          authenticityScore: Number,
+          inconsistencies: [String]
+        }
+      ]
+    },
     linkedin: { employment, education, endorsements },
     portfolio: { projects, liveStatus, technologies },
+    competitiveProgramming: { 
+      leetcode: { rating, problemsSolved, contestRating, badges },
+      codeforces: { rating, maxRating, contestsParticipated, rank },
+      codechef: { rating, stars, globalRank, problemsSolved },
+      hackerrank: { badges, skills, problemsSolved }
+    },
     opensource: { contributions, impact, recognition }
+  },
+  projectVerificationSummary: {
+    totalProjects: Number,
+    verifiedProjects: Number,
+    missingProjects: Number,
+    privateProjects: Number,
+    verificationRate: Number // percentage
   },
   report: String,
   lastVerified: Date,
@@ -694,23 +801,40 @@ Final = (85 × 0.6) + (75 × 0.4) = 51 + 30 = 81/100
 ```javascript
 const calculateCredibilityScore = (scores) => {
   const {
-    resumeAlignment,    // 0-100
-    githubScore,        // 0-100
-    linkedinScore,      // 0-100
-    portfolioScore,     // 0-100
-    opensourceScore     // 0-100
+    resumeAlignment,          // 0-100
+    githubScore,              // 0-100
+    projectVerification,      // 0-100 (NEW)
+    linkedinScore,            // 0-100
+    portfolioScore,           // 0-100
+    competitiveProgramming,   // 0-100
+    opensourceScore           // 0-100
   } = scores;
 
   return (
-    (resumeAlignment × 0.30) +    // 30% - Resume/reality alignment
-    (githubScore × 0.25) +        // 25% - Development capability
-    (linkedinScore × 0.20) +      // 20% - Professional legitimacy
-    (portfolioScore × 0.15) +     // 15% - Execution ability
-    (opensourceScore × 0.10)      // 10% - Community impact
+    (resumeAlignment × 0.20) +           // 20% - Resume/reality alignment
+    (githubScore × 0.15) +               // 15% - Development capability
+    (projectVerification × 0.20) +       // 20% - Resume projects verified on GitHub
+    (linkedinScore × 0.15) +             // 15% - Professional legitimacy
+    (portfolioScore × 0.10) +            // 10% - Execution ability
+    (competitiveProgramming × 0.10) +    // 10% - Problem-solving skills
+    (opensourceScore × 0.10)             // 10% - Community impact
   );
 };
 
-// Result: 0-100 credibility score
+// Project Verification Score Calculation
+const calculateProjectVerificationScore = (verification) => {
+  const { totalProjects, verifiedProjects, publicProjects, authenticityScores } = verification;
+  
+  if (totalProjects === 0) return 50; // Neutral score if no projects
+  
+  const verificationRate = (verifiedProjects / totalProjects) * 100;
+  const publicRate = (publicProjects / totalProjects) * 100;
+  const avgAuthenticity = authenticityScores.reduce((a,b) => a+b, 0) / authenticityScores.length;
+  
+  return (verificationRate × 0.40) + (publicRate × 0.30) + (avgAuthenticity × 0.30);
+};
+
+// Result: 0-100 credibility score with project verification
 ```
 
 ---
@@ -729,7 +853,8 @@ const calculateCredibilityScore = (scores) => {
 9. **User Profile** - Account management and settings
 10. **Recruiter Dashboard** - Bulk upload and candidate ranking
 11. **Credibility Report** - Verification results (Phase 3)
-12. **Settings** - User preferences and integrations
+12. **Project Verification Dashboard** - Resume projects vs GitHub repos comparison
+13. **Settings** - User preferences and integrations
 
 ---
 
@@ -817,6 +942,14 @@ const calculateCredibilityScore = (scores) => {
 - Implement timeout for long-running agents
 - Log all agent actions for debugging
 - Monitor agent performance
+- **Project Verification Best Practices:**
+  - Parse project names from resume accurately
+  - Handle URL variations (http/https, www, trailing slashes)
+  - Match project names with fuzzy logic (case-insensitive)
+  - Check repo ownership vs contribution
+  - Analyze commit frequency and recency
+  - Flag suspicious patterns (single commits, copy-paste)
+  - Verify claimed technologies match actual code files
 
 ---
 
@@ -833,9 +966,12 @@ const calculateCredibilityScore = (scores) => {
 
 ### By Week 16 (With Agent System):
 - ✅ Credential verification: 90%+ accuracy
-- ✅ Agent execution: <30 seconds for all 4 agents
+- ✅ Agent execution: <30 seconds for all 5 agents (GitHub, LinkedIn, Portfolio, CP, OpenSource)
+- ✅ **Project verification: Match resume projects with GitHub repos at 95%+ accuracy**
+- ✅ **Project authenticity analysis: Detect commit patterns, code ownership**
 - ✅ Credibility scoring: Validated against manual reviews
-- ✅ Risk detection: Catches inconsistencies
+- ✅ CP profile analysis: LeetCode, Codeforces, CodeChef integration
+- ✅ Risk detection: Catches inconsistencies, missing/private projects
 - ✅ Report quality: High professional standard
 - ✅ Scalability: Handles 100+ concurrent users
 
@@ -885,6 +1021,9 @@ You'll gain expertise in:
 - Web scraping integration
 - Autonomous decision-making
 - ReAct pattern implementation
+- **Resume-to-GitHub project matching algorithms**
+- **Commit pattern analysis and authenticity detection**
+- **Repository ownership verification**
 
 ### DevOps & Deployment
 - Environment configuration
@@ -915,6 +1054,10 @@ You'll gain expertise in:
 6. API for Partners - B2B integration
 7. Advanced Analytics - ML insights
 8. Custom Reports - Enterprise features
+9. **Automated Project Discovery** - Auto-detect GitHub projects from profile
+10. **Plagiarism Detection** - Compare code similarity across repos
+11. **Contribution Timeline Visualization** - Show project activity over time
+12. **Tech Stack Trends** - Analyze technology evolution in projects
 ```
 
 ---
@@ -1121,7 +1264,10 @@ Total:       16 weeks, 130-150 hours
 Resume Upload → Parsing → NLP Analysis → ATS Scoring
 → Suggestions → Optimization → Export
 → Multi-Resume → Recruiter Dashboard → Analytics
-→ GitHub Verification → LinkedIn Validation → Portfolio Check
+→ GitHub Verification → Resume Project Verification (GitHub URL matching)
+→ LinkedIn Validation → Portfolio Check
+→ CP Profile Analysis (LeetCode, Codeforces, CodeChef)
+→ Project Authenticity Check (commit history, code ownership)
 → OpenSource Tracking → Credibility Scoring → Intelligence Reports
 ```
 

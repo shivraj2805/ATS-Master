@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Upload, FileText, X, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import TermsModal from '../ui/TermsModal';
 
 export default function UploadSection() {
   const navigate = useNavigate();
@@ -12,6 +13,9 @@ export default function UploadSection() {
   const [company, setCompany] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState(null);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [pendingFile, setPendingFile] = useState(null);
 
   const handleDragOver = useCallback((e) => {
     e.preventDefault();
@@ -30,14 +34,24 @@ export default function UploadSection() {
 
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile) {
-      validateAndSetFile(droppedFile);
+      if (!termsAccepted) {
+        setPendingFile(droppedFile);
+        setShowTermsModal(true);
+      } else {
+        validateAndSetFile(droppedFile);
+      }
     }
-  }, []);
+  }, [termsAccepted]);
 
   const handleFileInput = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
-      validateAndSetFile(selectedFile);
+      if (!termsAccepted) {
+        setPendingFile(selectedFile);
+        setShowTermsModal(true);
+      } else {
+        validateAndSetFile(selectedFile);
+      }
     }
   };
 
@@ -62,6 +76,19 @@ export default function UploadSection() {
   const handleRemoveFile = () => {
     setFile(null);
     setValidationError(null);
+  };
+
+  const handleTermsAccept = () => {
+    setTermsAccepted(true);
+    if (pendingFile) {
+      validateAndSetFile(pendingFile);
+      setPendingFile(null);
+    }
+  };
+
+  const handleTermsClose = () => {
+    setShowTermsModal(false);
+    setPendingFile(null);
   };
 
   const handleAnalyze = async () => {
@@ -245,19 +272,27 @@ export default function UploadSection() {
   const displayError = error || validationError;
 
   return (
-    <section id="upload" className="py-20 bg-gradient-to-br from-gray-50 to-white">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-10 animate-fade-in-up">
-          <h2 className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-gray-900 via-primary-900 to-secondary-900 bg-clip-text text-transparent mb-4">
-            Upload Your Resume
-          </h2>
-          <p className="text-lg text-gray-600 font-medium">
-            Drop your resume file and let our <span className="text-primary-600 font-bold">AI analyze</span> it for ATS compatibility
-          </p>
-        </div>
+    <>
+      {/* Terms and Conditions Modal - Rendered at top level */}
+      <TermsModal
+        isOpen={showTermsModal}
+        onClose={handleTermsClose}
+        onAccept={handleTermsAccept}
+      />
 
-        <div>
-          {/* Loading Overlay */}
+      <section id="upload" className="py-20 bg-gradient-to-br from-gray-50 to-white">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10 animate-fade-in-up">
+            <h2 className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-gray-900 via-primary-900 to-secondary-900 bg-clip-text text-transparent mb-4">
+              Upload Your Resume
+            </h2>
+            <p className="text-lg text-gray-600 font-medium">
+              Drop your resume file and let our <span className="text-primary-600 font-bold">AI analyze</span> it for ATS compatibility
+            </p>
+          </div>
+
+          <div>
+            {/* Loading Overlay */}
           {isAnalyzing && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
               <div className="glass rounded-3xl p-10 max-w-md mx-4 text-center shadow-hard animate-scale-in">
@@ -433,5 +468,6 @@ export default function UploadSection() {
         </div>
       </div>
     </section>
+    </>
   );
 }
