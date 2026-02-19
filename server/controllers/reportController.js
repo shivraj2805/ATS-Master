@@ -98,7 +98,7 @@ exports.downloadReport = async (req, res) => {
       compY += 15;
       
       // Resume
-      doc.fontSize(8).fillColor('#000').font('Helvetica').text('Resume (70%)', 170, compY);
+      doc.fontSize(8).fillColor('#000').font('Helvetica').text('Resume (60%)', 170, compY);
       drawCompactScoreBar(doc, 260, compY - 2, 150, formula.resume_score || 0, 120);
       compY += 18;
       
@@ -106,6 +106,14 @@ exports.downloadReport = async (req, res) => {
       doc.text('GitHub', 170, compY);
       drawCompactScoreBar(doc, 260, compY - 2, 150, formula.github_score || 0, 120);
       if (formula.github_score === 0) {
+        doc.fontSize(7).fillColor('#DC2626').text('[!]', 390, compY - 2);
+      }
+      compY += 18;
+      
+      // Projects
+      doc.text('Projects', 170, compY);
+      drawCompactScoreBar(doc, 260, compY - 2, 150, formula.project_score || 0, 120);
+      if (formula.project_score === 0) {
         doc.fontSize(7).fillColor('#DC2626').text('[!]', 390, compY - 2);
       }
       compY += 18;
@@ -119,7 +127,7 @@ exports.downloadReport = async (req, res) => {
       compY += 18;
       
       // Proof
-      doc.fontSize(8).fillColor('#000').font('Helvetica-Bold').text('Proof (30%)', 170, compY);
+      doc.fontSize(8).fillColor('#000').font('Helvetica-Bold').text('Proof (40%)', 170, compY);
       drawCompactScoreBar(doc, 260, compY - 2, 150, formula.proof_score || 0, 120);
     }
     

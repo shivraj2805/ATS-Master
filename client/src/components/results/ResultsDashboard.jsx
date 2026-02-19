@@ -18,6 +18,8 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import ExtractedLinks from './ExtractedLinks';
+import ResumeProjects from './ResumeProjects';
+import ProjectVerification from './ProjectVerification';
 
 export default function ResultsDashboard({ results, onReset }) {
   const navigate = useNavigate();
@@ -92,6 +94,8 @@ export default function ResultsDashboard({ results, onReset }) {
   // Debug: Log extracted links and profile analysis
   console.log('ResultsDashboard - extracted_links:', results.extracted_links);
   console.log('ResultsDashboard - profile_analysis:', results.profile_analysis);
+  console.log('ResultsDashboard - extracted_projects:', results.extracted_projects);
+  console.log('ResultsDashboard - project_verification:', results.project_verification);
 
   // ⚡ Recalculate Final ATS Score when GitHub/CP reports are available
   const calculateFinalAtsScore = () => {
@@ -104,17 +108,75 @@ export default function ResultsDashboard({ results, onReset }) {
     const cpScore = cpReport?.overall_score ?? 
                    results.profile_analysis?.competitive_programming?.overall_score ?? 0;
     
-    // Calculate proof score and final ATS
-    const proofScore = (githubScore + cpScore) / 2;
-    const finalAtsScore = Math.round((0.70 * resumeScore) + (0.30 * proofScore));
+    // Get Project Score - use backend-calculated score if available, otherwise calculate
+    let projectScore = results.score_breakdown?.scoring_formula?.project_score ?? 0;
+    
+    // Fallback: Calculate Project Score from verification results if not in backend
+    if (projectScore === 0 && results.project_verification && results.project_verification.summary) {
+      const summary = results.project_verification.summary;
+      const T = summary.total_projects;
+      const F = summary.found;
+      const M = summary.maybe;
+      const N = summary.not_found;
+      
+      // Calculate average project quality
+      let totalWeightedQuality = 0;
+      let totalWeight = 0;
+      
+      if (results.project_verification.results) {
+        results.project_verification.results.forEach(result => {
+          if (result.quality && result.quality.score) {
+            const quality = result.quality.score;
+            let weight = 0;
+            if (result.present === 'FOUND') weight = 1;
+            else if (result.present === 'MAYBE') weight = 0.5;
+            
+            if (weight > 0) {
+              totalWeightedQuality += quality * weight;
+              totalWeight += weight;
+            }
+          }
+        });
+      }
+      
+      const avgProjectQuality = totalWeight > 0 ? totalWeightedQuality / totalWeight : 0;
+      // Use backend-calculated verification_rate for consistency
+      const verificationScore = summary.verification_rate || ((F + 0.5 * M) / Math.max(1, T)) * 100;
+      const baseProjectScore = 0.70 * verificationScore + 0.30 * avgProjectQuality;
+      
+      // Apply credibility penalty
+      const alpha = 1.2;
+      const missingRatio = T > 0 ? N / T : 0;
+      const penaltyFactor = Math.exp(-alpha * missingRatio);
+      
+      projectScore = Math.round(baseProjectScore * penaltyFactor);
+      
+      console.log('🔍 ResultsDashboard Project Score (fallback calculation):', {
+        verificationScore,
+        avgProjectQuality: avgProjectQuality.toFixed(2),
+        baseProjectScore: baseProjectScore.toFixed(2),
+        penaltyFactor: penaltyFactor.toFixed(2),
+        finalProjectScore: projectScore
+      });
+    } else {
+      console.log('✅ Using backend-calculated project score:', projectScore);
+    }
+    
+    // Calculate proof score: 30% GitHub + 40% Projects + 30% CP
+    const proofScore = (0.30 * githubScore) + (0.40 * projectScore) + (0.30 * cpScore);
+    
+    // Calculate final ATS: 60% Resume + 40% Proof
+    const finalAtsScore = Math.round((0.60 * resumeScore) + (0.40 * proofScore));
     
     return {
       final: Math.max(0, Math.min(100, finalAtsScore)),
       resume: resumeScore,
       github: githubScore,
+      project: Math.round(projectScore),
       cp: cpScore,
       proof: Math.round(proofScore),
       missingGithub: githubScore === 0,
+      missingProjects: projectScore === 0,
       missingCp: cpScore === 0
     };
   };
@@ -602,7 +664,7 @@ export default function ResultsDashboard({ results, onReset }) {
             </p>
 
             {/* Warning for Missing Profiles */}
-            {(liveScoring.missingGithub || liveScoring.missingCp) && (
+            {(liveScoring.missingGithub || liveScoring.missingProjects || liveScoring.missingCp) && (
               <div className="mt-4 p-4 bg-orange-50 border-2 border-orange-300 rounded-xl animate-pulse">
                 <div className="flex items-start gap-2">
                   <svg className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
@@ -611,11 +673,11 @@ export default function ResultsDashboard({ results, onReset }) {
                   <div className="flex-1">
                     <p className="text-sm font-bold text-orange-800 mb-1">Profile Scores Missing</p>
                     <p className="text-xs text-orange-700 leading-relaxed">
-                      {liveScoring.missingGithub && liveScoring.missingCp
-                        ? '⚠️ GitHub and Competitive Programming scores are mandatory. Missing profiles are counted as 0, which significantly lowers your ATS score.'
-                        : liveScoring.missingGithub
-                        ? '⚠️ GitHub profile score is missing and counted as 0, which lowers your ATS score. Add your GitHub profile to improve.'
-                        : '⚠️ Competitive Programming score is missing and counted as 0, which lowers your ATS score. Add your LeetCode profile to improve.'}
+                      ⚠️ {[
+                        liveScoring.missingGithub && 'GitHub',
+                        liveScoring.missingProjects && 'Projects', 
+                        liveScoring.missingCp && 'Competitive Programming'
+                      ].filter(Boolean).join(', ')} {[liveScoring.missingGithub, liveScoring.missingProjects, liveScoring.missingCp].filter(Boolean).length > 1 ? 'scores are' : 'score is'} missing and counted as 0, which significantly lowers your ATS score.
                     </p>
                   </div>
                 </div>
@@ -627,11 +689,11 @@ export default function ResultsDashboard({ results, onReset }) {
               <p className="text-xs font-bold text-gray-600 mb-2">Score Composition</p>
               <div className="space-y-1 text-xs text-gray-700">
                 <div className="flex justify-between">
-                  <span>Resume (70%):</span>
+                  <span>Resume (60%):</span>
                   <span className="font-bold">{liveScoring.resume}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>GitHub:</span>
+                  <span>GitHub :</span>
                   <span className={`font-bold ${liveScoring.github === 0 ? 'text-red-600' : 'text-green-600'}`}>
                     {liveScoring.github}
                   </span>
@@ -642,8 +704,15 @@ export default function ResultsDashboard({ results, onReset }) {
                     {liveScoring.cp}
                   </span>
                 </div>
+                <div className="flex justify-between">
+                  <span>Projects:</span>
+                  <span className={`font-bold ${liveScoring.project === 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    {liveScoring.project}
+                  </span>
+                </div>
+                
                 <div className="flex justify-between pt-1 border-t border-gray-300">
-                  <span>Proof Score (30%):</span>
+                  <span>Proof Score (40%):</span>
                   <span className="font-bold">{liveScoring.proof}</span>
                 </div>
               </div>
@@ -1378,6 +1447,12 @@ export default function ResultsDashboard({ results, onReset }) {
 
          {/* Extracted Links Section */}
         <ExtractedLinks links={results.extracted_links} />
+
+        {/* Resume Projects Section - AI-Extracted from Backend */}
+        <ResumeProjects projects={results.extracted_projects || []} />
+
+        {/* Project Verification Section - GitHub Verification */}
+        <ProjectVerification verification={results.project_verification} />
 
         {/* Issues & Suggestions - Real Data from Backend */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">

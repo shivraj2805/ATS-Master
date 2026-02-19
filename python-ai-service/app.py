@@ -630,6 +630,117 @@ def extract_links():
             }
         }), 200  # Return 200 with empty buckets instead of 500
 
+@app.route('/api/extract-projects', methods=['POST'])
+def extract_projects():
+    """Extract projects from resume text using Gemini"""
+    try:
+        data = request.json
+        resume_text = data.get('resumeText', '')
+        
+        if not resume_text:
+            return jsonify({
+                'success': False,
+                'error': 'Missing resume text',
+                'projects': []
+            }), 400
+        
+        print(f"\n{'='*70}")
+        print(f"🔍 PROJECT EXTRACTION STARTED")
+        print(f"{'='*70}")
+        print(f"Resume text length: {len(resume_text)} characters")
+        
+        # Import and run project extractor
+        from project_extractor_gemini import extract_projects_with_gemini
+        
+        result = extract_projects_with_gemini(resume_text)
+        projects = result.get('projects', [])
+        
+        print(f"\n✅ Found {len(projects)} projects")
+        for idx, proj in enumerate(projects):
+            print(f"   [{idx+1}] {proj.get('name', 'Unnamed')}")
+            if proj.get('technologies'):
+                print(f"       Tech: {', '.join(proj['technologies'][:5])}")
+            if proj.get('githubUrl'):
+                print(f"       GitHub: {proj['githubUrl']}")
+            if proj.get('liveUrl'):
+                print(f"       Live: {proj['liveUrl']}")
+        
+        print(f"{'='*70}\n")
+        
+        return jsonify({
+            'success': True,
+            'projects': projects,
+            'total': len(projects)
+        })
+    
+    except Exception as e:
+        print(f"❌ Project extraction error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'projects': []
+        }), 500
+
+@app.route('/api/verify-projects', methods=['POST'])
+def verify_projects():
+    """Verify resume projects against GitHub repositories"""
+    try:
+        data = request.json
+        github_username = data.get('github_username', '')
+        projects = data.get('projects', [])
+        
+        if not github_username:
+            return jsonify({
+                'success': False,
+                'error': 'GitHub username is required',
+                'verification': None
+            }), 400
+        
+        if not projects or not isinstance(projects, list):
+            return jsonify({
+                'success': False,
+                'error': 'Projects list is required',
+                'verification': None
+            }), 400
+        
+        print(f"\n{'='*70}")
+        print(f"🔍 PROJECT VERIFICATION STARTED")
+        print(f"{'='*70}")
+        print(f"GitHub Username: {github_username}")
+        print(f"Projects to verify: {len(projects)}")
+        
+        # Import and run project verifier
+        from project_verifier_agent import verify_projects_agent
+        
+        payload = {
+            "github_username": github_username,
+            "projects": projects
+        }
+        
+        result = verify_projects_agent(payload)
+        
+        summary = result.get('summary', {})
+        print(f"\n✅ Verification complete")
+        print(f"   Total: {summary.get('total_projects', 0)}")
+        print(f"   Found: {summary.get('found', 0)}")
+        print(f"   Maybe: {summary.get('maybe', 0)}")
+        print(f"   Not Found: {summary.get('not_found', 0)}")
+        print(f"   Verification Rate: {summary.get('verification_rate', 0)}%")
+        print(f"{'='*70}\n")
+        
+        return jsonify({
+            'success': True,
+            'verification': result
+        })
+    
+    except Exception as e:
+        print(f"❌ Project verification error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'verification': None
+        }), 500
+
 # ==================== GitHub Analysis Integration ====================
 
 def clamp(x: float, lo: float, hi: float) -> float:

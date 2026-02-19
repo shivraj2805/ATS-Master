@@ -181,6 +181,47 @@ exports.analyzeResume = async (req, res) => {
       }
     }
 
+    // Step 5: Extract Projects using Gemini AI
+    let extractedProjects = [];
+    try {
+      console.log('\n🔍 Extracting projects from resume using Gemini AI...');
+      const projectResult = await aiService.extractProjects(parsedData.raw_text);
+      
+      if (projectResult.success && projectResult.projects) {
+        extractedProjects = projectResult.projects;
+        console.log(`✅ Project extraction complete - Found ${extractedProjects.length} projects`);
+      }
+    } catch (projectError) {
+      console.warn('⚠️ Project extraction failed:', projectError.message);
+      // Non-blocking: continue even if project extraction fails
+    }
+
+    // Step 6: Verify Projects against GitHub (if GitHub link found and projects extracted)
+    let projectVerification = null;
+    if (extractedProjects.length > 0 && extractedLinks.github && extractedLinks.github.length > 0) {
+      try {
+        // Extract GitHub username from first GitHub link
+        const githubUrl = extractedLinks.github[0];
+        const githubUsername = githubUrl.split('/').filter(Boolean).pop();
+        
+        if (githubUsername) {
+          console.log(`\n🔍 Verifying ${extractedProjects.length} projects against GitHub (@${githubUsername})...`);
+          const verifyResult = await aiService.verifyProjects(githubUsername, extractedProjects);
+          
+          if (verifyResult.success && verifyResult.verification) {
+            projectVerification = verifyResult.verification;
+            const summary = projectVerification.summary;
+            console.log(`✅ Project verification complete`);
+            console.log(`   Verification Rate: ${summary.verification_rate}%`);
+            console.log(`   Found: ${summary.found}, Maybe: ${summary.maybe}, Not Found: ${summary.not_found}`);
+          }
+        }
+      } catch (verifyError) {
+        console.warn('⚠️ Project verification failed:', verifyError.message);
+        // Non-blocking: continue even if verification fails
+      }
+    }
+
     // Job description is required
     if (!req.body.jobDescription || !req.body.jobDescription.trim()) {
       // Clean up uploaded file
@@ -277,20 +318,63 @@ exports.analyzeResume = async (req, res) => {
       };
     }
 
-    // ⚡ NEW ATS SCORING FORMULA: Resume (70%) + Proof Score (30%)
-    // Extract GitHub and CP scores from profile analysis
+    // ⚡ NEW ATS SCORING FORMULA: Resume (60%) + Proof Score (40%)
+    // ProofScore = 0.30×GitHub + 0.40×ProjectScore + 0.30×CP
+    // Final ATS = 0.60×Resume + 0.40×ProofScore
+    
+    // Extract scores from profile analysis and project verification
     let githubScore = profileAnalysis.github?.overall_score;
     let cpScore = profileAnalysis.competitiveProgramming?.overall_score;
+    let projectScore = 0;
+    
+    // Calculate project score from verification results
+    if (projectVerification && projectVerification.summary) {
+      const T = projectVerification.summary.total_projects;
+      const F = projectVerification.summary.found;
+      const M = projectVerification.summary.maybe;
+      const N = projectVerification.summary.not_found;
+      
+      // Calculate average project quality
+      let totalWeightedQuality = 0;
+      let totalWeight = 0;
+      
+      if (projectVerification.results) {
+        projectVerification.results.forEach(result => {
+          if (result.quality && result.quality.score) {
+            const quality = result.quality.score;
+            let weight = 0;
+            if (result.present === 'FOUND') weight = 1;
+            else if (result.present === 'MAYBE') weight = 0.5;
+            
+            if (weight > 0) {
+              totalWeightedQuality += quality * weight;
+              totalWeight += weight;
+            }
+          }
+        });
+      }
+      
+      const avgProjectQuality = totalWeight > 0 ? totalWeightedQuality / totalWeight : 0;
+      const verificationScore = ((F + 0.5 * M) / Math.max(1, T)) * 100;
+      const baseProjectScore = 0.70 * verificationScore + 0.30 * avgProjectQuality;
+      
+      // Apply credibility penalty
+      const alpha = 1.2;
+      const missingRatio = T > 0 ? N / T : 0;
+      const penaltyFactor = Math.exp(-alpha * missingRatio);
+      
+      projectScore = baseProjectScore * penaltyFactor;
+    }
     
     // Step 1: Normalize missing scores to 0
     if (githubScore == null || githubScore === undefined) githubScore = 0;
     if (cpScore == null || cpScore === undefined) cpScore = 0;
     
-    // Step 2: Calculate proof score (average of GitHub and CP)
-    const proofScore = (githubScore + cpScore) / 2;
+    // Step 2: Calculate proof score (30% GitHub + 40% Projects + 30% CP)
+    const proofScore = (0.30 * githubScore) + (0.40 * projectScore) + (0.30 * cpScore);
     
-    // Step 3: Calculate final ATS score (70% resume + 30% proof)
-    let finalScore = (0.70 * resumeScore) + (0.30 * proofScore);
+    // Step 3: Calculate final ATS score (60% resume + 40% proof)
+    let finalScore = (0.60 * resumeScore) + (0.40 * proofScore);
     
     // Step 4: Round and clamp between 0-100
     finalScore = Math.round(finalScore);
@@ -300,15 +384,22 @@ exports.analyzeResume = async (req, res) => {
     scoreBreakdown.scoring_formula = {
       resume_score: resumeScore,
       github_score: githubScore,
+      project_score: Math.round(projectScore),
       cp_score: cpScore,
       proof_score: Math.round(proofScore),
       final_score: finalScore,
       weights: {
-        resume: 0.70,
-        proof: 0.30
+        resume: 0.60,
+        proof: 0.40,
+        proof_breakdown: {
+          github: 0.30,
+          projects: 0.40,
+          competitive_programming: 0.30
+        }
       },
       missing_profiles: {
         github: githubScore === 0,
+        projects: projectScore === 0,
         competitive_programming: cpScore === 0
       }
     };
@@ -316,6 +407,7 @@ exports.analyzeResume = async (req, res) => {
     console.log('📊 Final ATS Scoring:');
     console.log(`  Resume Score: ${resumeScore}`);
     console.log(`  GitHub Score: ${githubScore}`);
+    console.log(`  Project Score: ${Math.round(projectScore)}`);
     console.log(`  CP Score: ${cpScore}`);
     console.log(`  Proof Score: ${Math.round(proofScore)}`);
     console.log(`  Final ATS: ${finalScore}`);
@@ -380,6 +472,7 @@ exports.analyzeResume = async (req, res) => {
       keywords_analysis: atsAnalysis.keywords_analysis,
       parsing_method: parsedData.parsing_method,
       ocr_confidence: parsedData.ocr_confidence,
+      resume_text: parsedData.raw_text, // Include raw resume text for client-side processing
     };
 
     // Add semantic analysis if available
@@ -415,6 +508,14 @@ exports.analyzeResume = async (req, res) => {
 
     // Add extracted links to response
     response.extracted_links = extractedLinks;
+
+    // Add extracted projects from AI (Gemini)
+    response.extracted_projects = extractedProjects;
+
+    // Add project verification results
+    if (projectVerification) {
+      response.project_verification = projectVerification;
+    }
 
     // Add profile analysis results (GitHub and Competitive Programming)
     if (profileAnalysis.github || profileAnalysis.competitiveProgramming) {

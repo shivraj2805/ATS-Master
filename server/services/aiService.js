@@ -199,6 +199,37 @@ class AIService {
       throw new Error('Failed to analyze profiles');
     }
   }
+
+  /**
+   * Extract projects from resume text using Gemini AI
+   */
+  async extractProjects(resumeText) {
+    try {
+      const response = await this.client.post('/api/extract-projects', {
+        resumeText
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Project extraction error:', error.message);
+      throw new Error('Failed to extract projects from resume');
+    }
+  }
+
+  /**
+   * Verify resume projects against GitHub repositories
+   */
+  async verifyProjects(githubUsername, projects) {
+    try {
+      const response = await this.client.post('/api/verify-projects', {
+        github_username: githubUsername,
+        projects
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Project verification error:', error.message);
+      throw new Error('Failed to verify projects against GitHub');
+    }
+  }
 }
 
 // Create singleton instance
