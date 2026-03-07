@@ -10,6 +10,7 @@ const { getSemanticAnalyzer } = require('./services/semanticAnalyzer');
 const authRoutes = require('./routes/auth');
 const resumeRoutes = require('./routes/resume');
 const optimizationRoutes = require('./routes/optimization');
+const reviewRoutes = require('./routes/review');
 const { downloadReport } = require('./controllers/reportController');
 
 const app = express();
@@ -47,6 +48,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/resume', resumeRoutes);
 app.use('/api/optimization', optimizationRoutes);
+app.use('/api/reviews', reviewRoutes);
 app.post('/api/download-report', downloadReport);
 
 // Health check routes

@@ -1,6 +1,22 @@
+import { useState, useEffect } from 'react';
 import { Facebook, Heart } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export default function Footer() {
+  const [reviewCount, setReviewCount] = useState(0);
+
+  useEffect(() => {
+    // Fetch review count
+    fetch('http://localhost:3001/api/reviews')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.count) {
+          setReviewCount(data.count);
+        }
+      })
+      .catch(err => console.error('Error fetching review count:', err));
+  }, []);
+
   return (
     <footer className="footer">
       <div className="footer-container">
@@ -11,7 +27,7 @@ export default function Footer() {
             <ul className="footer-links">
               <li><a href="#">Company</a></li>
               <li><a href="#">Careers</a></li>
-              <li><a href="#">Reviews</a></li>
+              <li><a href="/reviews">Reviews</a></li>
               <li><a href="#">LLM Info</a></li>
             </ul>
           </div>
@@ -42,7 +58,7 @@ export default function Footer() {
               <li><a href="#">Finnish (FI)</a></li>
               <li><a href="#">Czech (CS)</a></li>
               <li><a href="#">Polish (PL)</a></li>
-              <li><a href="#">Danish (DA)</a></li>
+           
             </ul>
           </div>
 
@@ -56,15 +72,15 @@ export default function Footer() {
                 <span className="star">★</span>
                 <span className="star half">★</span>
               </div>
-              <p className="review-count">5,074 Reviews</p>
-              <a href="#" className="reviews-link">Read More Reviews at Reviews.io</a>
+              <p className="review-count">{reviewCount.toLocaleString()} Reviews</p>
+              <Link to="/reviews" className="reviews-link">Read More Reviews at Reviews.io</Link>
             </div>
             <div className="footer-ai">
               <h4 className="footer-ai-heading">Ask AI about ATSMaster</h4>
               <ul className="footer-ai-links">
-                <li><a href="#">ChatGPT</a></li>
-                <li><a href="#">Perplexity</a></li>
-                <li><a href="#">Gemini</a></li>
+                <li><a href="https://chat.openai.com/" target="_blank" rel="noopener noreferrer">ChatGPT</a></li>
+                <li><a href="https://www.perplexity.ai/" target="_blank" rel="noopener noreferrer">Perplexity</a></li>
+                <li><a href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer">Gemini</a></li>
               </ul>
             </div>
           </div>
