@@ -165,12 +165,48 @@ ATSMaster is a cutting-edge full-stack application that revolutionizes the recru
 
 Comprehensive documentation is available in the `docs/` directory:
 
+### Getting Started
 - [📍 Start Here](docs/ATS-Start-Here.md) - Quick start guide and project overview
 - [📋 Complete Plan](docs/ATS-Master-Complete-Plan.md) - 16-week implementation roadmap
+
+### Architecture & Code
 - [🏗️ Agent Architecture](docs/ATS-Agent-Architecture-Diagram.md) - Detailed agent system design
 - [💻 Code Patterns](docs/ATS-Agent-Code-Patterns.md) - Implementation patterns and examples
-- [📚 Resource Index](docs/ATS-Resource-Index.md) - External resources and references
+- [📊 Agent Pipeline](docs/ATS-Agent-Pipeline.md) - Agent workflow and data flow
+
+### Deployment & Costs 💰 NEW!
+- [⚡ Quick Cost Summary](docs/QUICK-COST-SUMMARY.md) - Launch for $15/month!
+- [💼 Complete Cost Analysis](docs/INDUSTRY-DEPLOYMENT-COSTING.md) - Detailed financial breakdown
+- [🏗️ Platform Comparison](docs/HOSTING-PLATFORM-COMPARISON.md) - Choose the right hosting
+
+### Resources
+- [📚 Resource Index](docs/ATS-Resource-Index.md) - Complete documentation index
 - [🎉 Delivery Summary](docs/ATS-DELIVERY-SUMMARY.md) - Project deliverables and milestones
+
+---
+
+## 💰 Deployment Costs
+
+**Good news!** You can launch ATSMaster for as little as **$15-20/month** using modern cloud platforms:
+
+```
+MVP Launch (0-100 users):       $15/month
+Small Business (100-1K users):  $80/month
+Growing Startup (1K-5K users):  $300/month
+Established (5K-20K users):     $900/month
+```
+
+**What's included:**
+- ✅ Frontend hosting (Vercel)
+- ✅ Backend servers (Render)
+- ✅ MongoDB database
+- ✅ AI APIs (Google Gemini - free tier!)
+- ✅ SSL certificates (free)
+- ✅ CDN & monitoring
+
+**Break-even:** Just 2-30 paying users depending on your pricing model!
+
+📖 **Learn more:** Check out the [deployment cost documentation](docs/QUICK-COST-SUMMARY.md) for detailed breakdowns and platform comparisons.
 
 ---
 
