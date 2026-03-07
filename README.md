@@ -174,10 +174,8 @@ Comprehensive documentation is available in the `docs/` directory:
 - [💻 Code Patterns](docs/ATS-Agent-Code-Patterns.md) - Implementation patterns and examples
 - [📊 Agent Pipeline](docs/ATS-Agent-Pipeline.md) - Agent workflow and data flow
 
-### Deployment & Costs 💰 NEW!
-- [⚡ Quick Cost Summary](docs/QUICK-COST-SUMMARY.md) - Launch for $15/month!
-- [💼 Complete Cost Analysis](docs/INDUSTRY-DEPLOYMENT-COSTING.md) - Detailed financial breakdown
-- [🏗️ Platform Comparison](docs/HOSTING-PLATFORM-COMPARISON.md) - Choose the right hosting
+### Deployment & Costs 💰
+- [💰 Project Costing](docs/PROJECT-COSTING.md) - Complete cost breakdown in INR (AI APIs, AWS, GitHub)
 
 ### Resources
 - [📚 Resource Index](docs/ATS-Resource-Index.md) - Complete documentation index
@@ -185,28 +183,34 @@ Comprehensive documentation is available in the `docs/` directory:
 
 ---
 
-## 💰 Deployment Costs
+## 💰 Deployment Costs (All in INR)
 
-**Good news!** You can launch ATSMaster for as little as **$15-20/month** using modern cloud platforms:
+**Complete cost breakdown available!** Here's what you need to know:
 
 ```
-MVP Launch (0-100 users):       $15/month
-Small Business (100-1K users):  $80/month
-Growing Startup (1K-5K users):  $300/month
-Established (5K-20K users):     $900/month
+AWS Deployment:
+MVP (< 100 users):              ₹2,211/month
+Small Production (100-1K):      ₹10,823/month
+Medium Production (1K-5K):      ₹22,908/month
+Large Production (5K-20K):      ₹51,211/month
+
+AI API Costs (Gemini - Recommended):
+Cost per resume:                ₹0.053
+100 users (1,000 analyses):     ₹53/month
+1,000 users (10,000 analyses):  ₹531/month
+10,000 users (100K analyses):   ₹5,312/month
+
+GitHub Agent: FREE (5,000 requests/hour)
 ```
 
-**What's included:**
-- ✅ Frontend hosting (Vercel)
-- ✅ Backend servers (Render)
-- ✅ MongoDB database
-- ✅ AI APIs (Google Gemini - free tier!)
-- ✅ SSL certificates (free)
-- ✅ CDN & monitoring
+**Key Points:**
+- ✅ Gemini is 2× cheaper than OpenAI (₹0.053 vs ₹0.106 per resume)
+- ✅ GitHub API is completely FREE with authenticated token
+- ✅ AWS deployment scales efficiently from ₹2K to ₹2L/month
+- ✅ Can start with just ₹2,158/month for MVP
+- ✅ Potential 50-70% savings with optimization strategies
 
-**Break-even:** Just 2-30 paying users depending on your pricing model!
-
-📖 **Learn more:** Check out the [deployment cost documentation](docs/QUICK-COST-SUMMARY.md) for detailed breakdowns and platform comparisons.
+📖 **Full details:** See [PROJECT-COSTING.md](docs/PROJECT-COSTING.md) for comprehensive breakdown including bulk upload scenarios and recruiter platform costing.
 
 ---
 

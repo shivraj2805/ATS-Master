@@ -89,49 +89,18 @@
 
 ---
 
-### 7. **QUICK-COST-SUMMARY.md** ⭐ NEW!
-**Fast Cost Overview - Launch for $15/Month (4,000+ words)**
-- Launch costs at a glance ($15-20/month!)
-- Scaling costs (100 users → 50K+ users)
-- Break-even analysis by pricing model
-- Revenue potential calculations
-- Cost optimization secrets
-- Comparison vs. traditional hosting
-- Visual cost tables and charts
+### 7. **PROJECT-COSTING.md** 💰 UPDATED!
+**Complete Cost Analysis in INR (21,000+ characters)**
+- All costs in Indian Rupees (₹)
+- AI API costs (Gemini vs OpenAI) - per resume and bulk
+- AWS deployment costs (all components)
+- GitHub API costs (FREE!)
+- User-based costing (100, 1K, 10K+ users)
+- Recruiter platform bulk upload scenarios
+- 5 complete deployment scenarios (MVP → Enterprise)
+- Cost optimization strategies (save 50-70%)
 
-**Use this for:** Quick understanding of deployment costs
-
----
-
-### 8. **INDUSTRY-DEPLOYMENT-COSTING.md** 💼 NEW!
-**Complete Financial Breakdown (12,000+ words)**
-- Infrastructure costs (hosting, servers, databases)
-- API & service costs (Gemini, GitHub, etc.)
-- Domain, SSL, email, monitoring costs
-- Storage, CDN, backup costs
-- 5 detailed scaling scenarios (MVP → Enterprise)
-- Break-even analysis with 3 revenue models
-- Cost optimization strategies
-- Hidden costs to watch
-- One-time setup costs
-
-**Use this for:** Detailed budget planning, investor pitches, financial analysis
-
----
-
-### 9. **HOSTING-PLATFORM-COMPARISON.md** 🏗️ NEW!
-**Platform Comparison & Decision Guide (9,000+ words)**
-- Frontend hosting comparison (Vercel vs Netlify vs AWS)
-- Backend hosting comparison (Render vs Railway vs AWS)
-- Database comparison (MongoDB Atlas tier breakdown)
-- AI API cost comparison (Gemini vs OpenAI vs Claude)
-- 5 complete cost stacks (Free tier → Enterprise)
-- Performance benchmarks
-- Common mistakes to avoid
-- Pro tips for cost savings
-- Real-world examples
-
-**Use this for:** Choosing hosting providers, comparing alternatives
+**Use this for:** Understanding complete project costs, budget planning in INR
 
 ---
 
@@ -213,12 +182,13 @@
 - **Success mindset?** → `ATS-Start-Here.md` (Mindset section)
 
 ### Deployment & Costs ⭐ NEW!
-- **How much to deploy?** → `QUICK-COST-SUMMARY.md` (Quick overview)
-- **Detailed cost breakdown?** → `INDUSTRY-DEPLOYMENT-COSTING.md` (Complete analysis)
-- **Which hosting provider?** → `HOSTING-PLATFORM-COMPARISON.md` (Platform comparison)
-- **Break-even analysis?** → `QUICK-COST-SUMMARY.md` or `INDUSTRY-DEPLOYMENT-COSTING.md`
-- **Scaling costs?** → All three costing documents
-- **Revenue models?** → `INDUSTRY-DEPLOYMENT-COSTING.md` (Revenue Model section)
+- **How much to deploy?** → `PROJECT-COSTING.md` (Complete cost analysis)
+- **AI API costs?** → `PROJECT-COSTING.md` (Gemini vs OpenAI comparison)
+- **AWS deployment costs?** → `PROJECT-COSTING.md` (AWS infrastructure breakdown)
+- **GitHub agent costs?** → `PROJECT-COSTING.md` (FREE!)
+- **Bulk upload costs?** → `PROJECT-COSTING.md` (Recruiter platform scenarios)
+- **Break-even analysis?** → `PROJECT-COSTING.md` (ROI calculations)
+- **Scaling costs?** → `PROJECT-COSTING.md` (100 to 100K users)
 
 ### Agent System (Phase 3)
 - **Overview of agents?** → `ATS-Start-Here.md` (4 Agents section)
@@ -257,11 +227,12 @@
 ---
 
 ### For Deployment Planning ⭐ NEW!
-1. `QUICK-COST-SUMMARY.md` (quick cost overview) - 10 min
-2. `HOSTING-PLATFORM-COMPARISON.md` (platform comparison) - 20 min
-3. `INDUSTRY-DEPLOYMENT-COSTING.md` (detailed breakdown) - 30 min
-4. Make infrastructure decisions
-5. Set up billing alerts
+1. `PROJECT-COSTING.md` (complete cost breakdown) - 30 min
+2. Review AI API costs (Gemini vs OpenAI)
+3. Review AWS deployment scenarios
+4. Choose your target user scale
+5. Calculate break-even point
+6. Set up AWS account and billing alerts
 
 ---
 
@@ -287,20 +258,20 @@
 ## 💡 KEY STATISTICS
 
 ### Total Documentation
-- **9 Documents Created** (3 new costing docs!)
-- **75,000+ Words Total**
-- **150+ Pages**
+- **7 Documents Created** (1 comprehensive costing doc!)
+- **70,000+ Words Total**
+- **140+ Pages**
 - **30+ Diagrams & Examples**
 - **20+ Code Patterns**
 - **16-Week Implementation Timeline**
 - **15 Core Features**
 - **3 Development Phases**
-- **5 Scaling Scenarios** (MVP → Enterprise)
+- **5 AWS Deployment Scenarios** (MVP → Enterprise)
 
 ### Learning Investment
 - **Total Time:** 130-150 hours (16 weeks)
 - **Average/Week:** 8-10 hours
-- **Reading Time:** 3-4 hours upfront (including costing docs)
+- **Reading Time:** 3-4 hours upfront (including costing doc)
 - **Coding Time:** Rest of the hours
 
 ### Career Impact
@@ -309,12 +280,14 @@
 - **Skills Gained:** 30+ new technical skills
 - **Portfolio Value:** Game-changing
 
-### Deployment Costs (NEW!)
-- **MVP Launch:** $15/month
-- **Production (1K users):** $80/month
-- **Scale (10K+ users):** $300-900/month
-- **Break-Even:** 2-30 paying users (depends on pricing)
-- **Profit Margin:** 90-95% at scale
+### Deployment Costs (UPDATED!)
+- **MVP Launch:** ₹2,158/month (AWS)
+- **Production (1K users):** ₹10,823/month
+- **Scale (10K+ users):** ₹51,211/month
+- **AI Cost per Resume:** ₹0.053 (Gemini) vs ₹0.106 (OpenAI)
+- **GitHub API:** FREE
+- **Minimum to start:** ₹2,158/month
+- **Cost optimization potential:** 50-70% savings possible
 
 ---
 
@@ -345,15 +318,13 @@
 ```
 ATS-Master-Complete-Plan.md        50,000 words  (Main Reference)
 ATS-Agent-Layer.md                 15,000 words  (Agent Deep Dive)
-INDUSTRY-DEPLOYMENT-COSTING.md     12,000 words  (Cost Breakdown) ⭐ NEW
 ATS-Agent-Code-Patterns.md         10,000 words  (Code Templates)
-HOSTING-PLATFORM-COMPARISON.md      9,000 words  (Platform Guide) ⭐ NEW
 ATS-Agent-Architecture-Diagram.md   8,000 words  (Architecture)
 ATS-Complete-Summary.md             8,000 words  (Executive Summary)
+PROJECT-COSTING.md                  7,000 words  (Cost Breakdown - INR) ⭐ UPDATED
 ATS-Start-Here.md                   5,000 words  (Quick Start)
-QUICK-COST-SUMMARY.md               4,000 words  (Cost Overview) ⭐ NEW
 
-TOTAL:                          ~121,000 words (Complete Reference)
+TOTAL:                          ~103,000 words (Complete Reference)
 ```
 
 ---
