@@ -87,92 +87,6 @@ exports.analyzeResume = async (req, res) => {
           if (extractedLinks.linkedin.length > 0) {
             console.log('   📎 LinkedIn:', extractedLinks.linkedin.join(', '));
           }
-
-          // Step 3: Analyze Competitive Programming Profile (if LeetCode link found)
-          if (extractedLinks.leetcode && extractedLinks.leetcode.length > 0) {
-            try {
-              const leetcodeUrl = extractedLinks.leetcode[0]; // Use first LeetCode link from resume
-              
-              console.log('\n' + '═'.repeat(70));
-              console.log('🏆 COMPETITIVE PROGRAMMING ANALYSIS - BACKEND');
-              console.log('═'.repeat(70));
-              console.log('📌 LeetCode URL from Resume:', leetcodeUrl);
-              console.log('📌 Resume Filename:', req.file.originalname);
-              console.log('📌 Extracted from:', 'extracted_links.leetcode[0]');
-              console.log('📌 Full extracted_links.leetcode array:', JSON.stringify(extractedLinks.leetcode));
-              console.log('📌 This URL was extracted from the uploaded PDF by link-extractor.py');
-              console.log('📌 NO hard-coded URLs exist in the codebase');
-              console.log('═'.repeat(70));
-              
-              // VERIFICATION: Show what we're actually sending
-              console.log('\n🔍 SENDING TO PYTHON AI SERVICE:');
-              console.log('   URL:', leetcodeUrl);
-              console.log('   Type:', typeof leetcodeUrl);
-              console.log('   Length:', leetcodeUrl.length);
-              console.log('   Calling:', 'aiService.analyzeCompetitiveProfile()');
-              console.log('');
-              
-              const cpResult = await aiService.analyzeCompetitiveProfile(
-                leetcodeUrl, 
-                true,
-                parsedData.raw_text  // Pass resume text for personalized analysis
-              );
-              
-              if (cpResult.success && cpResult.report) {
-                profileAnalysis.competitiveProgramming = cpResult.report;
-                const analyzedUsername = cpResult.report.platform_data?.leetcode?.username || 'Unknown';
-                console.log(`✅ CP Analysis complete`);
-                console.log(`   Score: ${cpResult.report.overall_score}/100 (Grade: ${cpResult.report.grade})`);
-                console.log(`   Username analyzed: ${analyzedUsername}`);
-                console.log(`   ⚠️  If this username is WRONG, the PDF link extraction failed!`);
-                console.log(`   ⚠️  The agent correctly analyzed the URL we sent.`);
-              }
-            } catch (cpError) {
-              console.warn('⚠️ CP profile analysis failed:', cpError.message);
-              profileAnalysis.competitiveProgramming = { error: cpError.message };
-            }
-          } else {
-            console.log('\n⚠️  No LeetCode links found in extracted_links.leetcode');
-            console.log('   extracted_links:', JSON.stringify(extractedLinks, null, 2));
-          }
-
-          // Step 4: Analyze GitHub Profile (if GitHub link found)
-          if (extractedLinks.github && extractedLinks.github.length > 0) {
-            try {
-              // Extract username from GitHub URL in resume
-              const githubUrl = extractedLinks.github[0];
-              const githubUsername = githubUrl.split('/').filter(Boolean).pop();
-              
-              if (githubUsername) {
-                console.log('🔍 Analyzing GitHub profile from resume:', githubUrl, `(@${githubUsername})`);
-                // Prepare resume skills for GitHub analysis
-                const resumeSkills = [
-                  ...(skillsData.technical_skills || []),
-                  ...(skillsData.frameworks || []),
-                  ...(skillsData.tools || [])
-                ];
-                
-                // Convert skills to keywords (lowercase)
-                const keywords = resumeSkills.map(s => String(s).toLowerCase().trim()).filter(k => k.length > 0);
-                
-                const githubResult = await aiService.analyzeGitHub(
-                  githubUsername, 
-                  '', 
-                  keywords,  // Pass keywords from resume
-                  parsedData.raw_text,  // Pass resume text
-                  resumeSkills  // Pass resume skills
-                );
-                
-                if (githubResult.success && githubResult.report) {
-                  profileAnalysis.github = githubResult.report;
-                  console.log(`✅ GitHub Analysis complete - Score: ${githubResult.report.overall_score}/100`);
-                }
-              }
-            } catch (githubError) {
-              console.warn('⚠️ GitHub profile analysis failed:', githubError.message);
-              profileAnalysis.github = { error: githubError.message };
-            }
-          }
         } else {
           console.warn('⚠️ Link extraction failed:', linkData.error);
         }
@@ -181,19 +95,93 @@ exports.analyzeResume = async (req, res) => {
       }
     }
 
-    // Step 5: Extract Projects using Gemini AI
+    // Steps 3-5: Run ALL AI Operations in PARALLEL (Profile Analysis + Project Extraction)
+    // This significantly reduces processing time by running independent operations simultaneously
+    console.log('\n🚀 Starting all AI operations in parallel...');
+    
     let extractedProjects = [];
-    try {
-      console.log('\n🔍 Extracting projects from resume using Gemini AI...');
-      const projectResult = await aiService.extractProjects(parsedData.raw_text);
+    const allAiPromises = [];
+    
+    // Profile Analysis Promises (GitHub + LeetCode)
+    const hasLeetCode = extractedLinks.leetcode && extractedLinks.leetcode.length > 0;
+    const hasGitHub = extractedLinks.github && extractedLinks.github.length > 0;
+    
+    // LeetCode analysis promise
+    if (hasLeetCode) {
+      const leetcodeUrl = extractedLinks.leetcode[0];
+      console.log('📌 LeetCode URL:', leetcodeUrl);
       
-      if (projectResult.success && projectResult.projects) {
-        extractedProjects = projectResult.projects;
-        console.log(`✅ Project extraction complete - Found ${extractedProjects.length} projects`);
+      const leetcodePromise = aiService.analyzeCompetitiveProfile(
+        leetcodeUrl, 
+        true,
+        parsedData.raw_text
+      ).then(cpResult => {
+        if (cpResult.success && cpResult.report) {
+          profileAnalysis.competitiveProgramming = cpResult.report;
+          console.log(`✅ CP Analysis complete - Score: ${cpResult.report.overall_score}/100 (${cpResult.report.grade})`);
+        }
+      }).catch(cpError => {
+        console.warn('⚠️ CP profile analysis failed:', cpError.message);
+        profileAnalysis.competitiveProgramming = { error: cpError.message };
+      });
+      
+      allAiPromises.push(leetcodePromise);
+    }
+    
+    // GitHub analysis promise
+    if (hasGitHub) {
+      const githubUrl = extractedLinks.github[0];
+      const githubUsername = githubUrl.split('/').filter(Boolean).pop();
+      
+      if (githubUsername) {
+        console.log('📌 GitHub Username:', githubUsername);
+        
+        const resumeSkills = [
+          ...(skillsData.technical_skills || []),
+          ...(skillsData.frameworks || []),
+          ...(skillsData.tools || [])
+        ];
+        
+        const keywords = resumeSkills.map(s => String(s).toLowerCase().trim()).filter(k => k.length > 0);
+        
+        const githubPromise = aiService.analyzeGitHub(
+          githubUsername, 
+          '', 
+          keywords,
+          parsedData.raw_text,
+          resumeSkills
+        ).then(githubResult => {
+          if (githubResult.success && githubResult.report) {
+            profileAnalysis.github = githubResult.report;
+            console.log(`✅ GitHub Analysis complete - Score: ${githubResult.report.overall_score}/100 (${githubResult.report.grade})`);
+          }
+        }).catch(githubError => {
+          console.warn('⚠️ GitHub profile analysis failed:', githubError.message);
+          profileAnalysis.github = { error: githubError.message };
+        });
+        
+        allAiPromises.push(githubPromise);
       }
-    } catch (projectError) {
-      console.warn('⚠️ Project extraction failed:', projectError.message);
-      // Non-blocking: continue even if project extraction fails
+    }
+    
+    // Project extraction promise (Gemini AI) - runs in parallel with profiles
+    const projectExtractionPromise = aiService.extractProjects(parsedData.raw_text)
+      .then(projectResult => {
+        if (projectResult.success && projectResult.projects) {
+          extractedProjects = projectResult.projects;
+          console.log(`✅ Project extraction complete - Found ${extractedProjects.length} projects`);
+        }
+      })
+      .catch(projectError => {
+        console.warn('⚠️ Project extraction failed:', projectError.message);
+      });
+    
+    allAiPromises.push(projectExtractionPromise);
+    
+    // Wait for ALL AI operations to complete in parallel
+    if (allAiPromises.length > 0) {
+      await Promise.all(allAiPromises);
+      console.log('✅ All parallel AI operations completed\n');
     }
 
     // Step 6: Verify Projects against GitHub (if GitHub link found and projects extracted)

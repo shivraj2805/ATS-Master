@@ -66,9 +66,9 @@ const ProfilePage = () => {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
-        <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
+        <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50">
           <div className="text-center">
-            <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+            <Loader2 className="w-12 h-12 animate-spin text-cyan-600 mx-auto mb-4" />
             <p className="text-gray-600 font-semibold">Loading profile...</p>
           </div>
         </div>
@@ -91,16 +91,16 @@ const ProfilePage = () => {
     <div className="min-h-screen flex flex-col">
       <Navbar />
       
-      <div className="flex-1 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="flex-1 bg-gradient-to-br from-cyan-50 to-blue-50 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full mb-4 shadow-lg">
-              <span className="text-3xl font-black text-white">
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full mb-4 shadow-xl">
+              <span className="text-4xl font-black text-white">
                 {user.name?.charAt(0).toUpperCase() || 'U'}
               </span>
             </div>
-            <h1 className="text-3xl font-black text-gray-900">{user.name}</h1>
+            <h1 className="text-4xl font-black text-gray-900">{user.name}</h1>
             <p className="text-gray-600 mt-2 flex items-center justify-center gap-2">
               <Briefcase className="w-4 h-4" />
               {user.role === 'candidate' ? 'Job Candidate' : 'Recruiter'}
@@ -128,12 +128,12 @@ const ProfilePage = () => {
           {/* Profile Card */}
           <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-100 overflow-hidden">
             {/* Card Header */}
-            <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-4 flex items-center justify-between">
+            <div className="bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-5 flex items-center justify-between">
               <h2 className="text-xl font-bold text-white">Profile Information</h2>
               {!isEditing && (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-white text-purple-600 font-bold rounded-lg hover:bg-gray-100 transition-all"
+                  className="flex items-center gap-2 px-4 py-2 bg-white text-cyan-600 font-bold rounded-lg hover:bg-gray-50 transition-all shadow-sm"
                 >
                   <Edit2 className="w-4 h-4" />
                   Edit Profile
@@ -156,7 +156,7 @@ const ProfilePage = () => {
                       name="name"
                       value={formData.name}
                       onChange={handleChange}
-                      className="block w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                      className="block w-full px-5 py-3.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all shadow-sm hover:border-gray-300"
                       required
                     />
                   ) : (
@@ -170,7 +170,7 @@ const ProfilePage = () => {
                     <Mail className="w-4 h-4" />
                     Email Address
                   </label>
-                  <p className="text-gray-900 text-lg font-semibold bg-gray-50 px-4 py-3 rounded-lg border-2 border-gray-200">
+                  <p className="text-gray-900 text-lg font-semibold bg-gray-50 px-5 py-3.5 rounded-xl border-2 border-gray-200">
                     {user.email}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
@@ -182,7 +182,7 @@ const ProfilePage = () => {
                     <Briefcase className="w-4 h-4" />
                     Account Type
                   </label>
-                  <p className="text-gray-900 text-lg font-semibold bg-gray-50 px-4 py-3 rounded-lg border-2 border-gray-200 inline-block">
+                  <p className="text-gray-900 text-lg font-semibold bg-gray-50 px-5 py-3.5 rounded-xl border-2 border-gray-200 inline-block">
                     {user.role === 'candidate' ? 'Job Candidate' : 'Recruiter'}
                   </p>
                 </div>
@@ -202,7 +202,7 @@ const ProfilePage = () => {
                     <button
                       type="submit"
                       disabled={saving}
-                      className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-lg hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                      className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl hover:from-cyan-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:scale-[1.01] transform"
                     >
                       {saving ? (
                         <>
@@ -220,7 +220,7 @@ const ProfilePage = () => {
                       type="button"
                       onClick={handleCancel}
                       disabled={saving}
-                      className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 bg-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <X className="w-5 h-5" />
                       <span>Cancel</span>
@@ -233,21 +233,21 @@ const ProfilePage = () => {
 
           {/* Stats Cards */}
           <div className="grid md:grid-cols-3 gap-6 mt-8">
-            <div className="bg-white rounded-xl p-6 shadow-lg border-2 border-purple-100">
+            <div className="bg-white rounded-xl p-6 shadow-lg border-2 border-cyan-100 hover:shadow-xl transition-shadow">
               <div className="text-center">
-                <div className="text-3xl font-black text-purple-600 mb-1">0</div>
+                <div className="text-4xl font-black text-cyan-600 mb-2">0</div>
                 <div className="text-sm text-gray-600 font-semibold">Resumes Analyzed</div>
               </div>
             </div>
-            <div className="bg-white rounded-xl p-6 shadow-lg border-2 border-pink-100">
+            <div className="bg-white rounded-xl p-6 shadow-lg border-2 border-blue-100 hover:shadow-xl transition-shadow">
               <div className="text-center">
-                <div className="text-3xl font-black text-pink-600 mb-1">0</div>
+                <div className="text-4xl font-black text-blue-600 mb-2">0</div>
                 <div className="text-sm text-gray-600 font-semibold">Optimizations Generated</div>
               </div>
             </div>
-            <div className="bg-white rounded-xl p-6 shadow-lg border-2 border-blue-100">
+            <div className="bg-white rounded-xl p-6 shadow-lg border-2 border-blue-200 hover:shadow-xl transition-shadow">
               <div className="text-center">
-                <div className="text-3xl font-black text-blue-600 mb-1">0</div>
+                <div className="text-4xl font-black text-blue-700 mb-2">0</div>
                 <div className="text-sm text-gray-600 font-semibold">GitHub Analyses</div>
               </div>
             </div>

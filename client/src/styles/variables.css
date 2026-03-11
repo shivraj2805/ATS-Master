@@ -1,10 +1,10 @@
 :root {
-  /* Color System */
-  --primary-purple: #667eea;
-  --primary-purple-dark: #764ba2;
+  /* Color System - Updated to Cyan/Blue Theme */
+  --primary-cyan: #06b6d4;
+  --primary-cyan-dark: #0891b2;
   --primary-blue: #2563eb;
-  --secondary-orange: #f97316;
-  --accent-yellow: #fbbf24;
+  --secondary-blue: #3b82f6;
+  --accent-cyan: #22d3ee;
   --success-blue: #60a5fa;
   --warning-yellow: #fbbf24;
   --error-red: #dc2626;

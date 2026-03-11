@@ -67,9 +67,9 @@ export default function ExtractedLinks({ links }) {
       key: 'portfolio',
       label: 'Portfolio',
       icon: Globe,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
-      borderColor: 'border-purple-200',
+      color: 'text-cyan-600',
+      bgColor: 'bg-cyan-50',
+      borderColor: 'border-cyan-200',
       links: links.portfolio || []
     },
     {
@@ -116,7 +116,7 @@ export default function ExtractedLinks({ links }) {
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-6">
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg">
+        <div className="p-2 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg">
           <ExternalLink className="w-6 h-6 text-white" />
         </div>
         <div>

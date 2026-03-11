@@ -130,132 +130,43 @@ export default function UploadSection() {
       // Store results in sessionStorage
       sessionStorage.setItem('analysisResults', JSON.stringify(data));
 
-      // Auto-analyze profiles if found before navigating
+      // Use profile analysis from backend (already computed during the 57s wait)
       let githubReport = null;
       let cpReport = null;
+
+      console.log('\n📊 Using Backend Profile Analysis:');
       
-      const hasGithub = data.candidate?.github || data.extracted_links?.github?.length > 0;
-      const hasLeetCode = data.extracted_links?.leetcode?.length > 0;
-
-      console.log('\n🔍 Profile Analysis Status:');
-      console.log(`  • GitHub: ${hasGithub ? '✓ Found' : '✗ Not found'}`);
-      console.log(`  • LeetCode: ${hasLeetCode ? '✓ Found' : '✗ Not found'}`);
-      
-      if (hasGithub || hasLeetCode) {
-        console.log('\n⏳ Starting profile analyses...\n');
-      }
-
-      // Analyze GitHub profile
-      if (hasGithub) {
-        try {
-          console.log('🔄 [1/2] Analyzing GitHub profile...');
-          
-          // Extract GitHub username
-          let githubUsername = null;
-          
-          if (data.candidate?.github) {
-            const match = data.candidate.github.match(/github\.com\/([^\\/\\s]+)/);
-            if (match) githubUsername = match[1];
-          }
-          
-          if (!githubUsername && data.extracted_links?.github) {
-            const githubLinks = data.extracted_links.github;
-            if (Array.isArray(githubLinks) && githubLinks.length > 0) {
-              const match = githubLinks[0].match(/github\.com\/([^\\/\\s]+)/);
-              if (match) githubUsername = match[1];
-            }
-          }
-
-          if (githubUsername) {
-            console.log('📌 GitHub Username:', githubUsername);
-            
-            // Prepare resume skills for better matching
-            const resumeSkills = [
-              ...(data.skills?.technical_skills || []),
-              ...(data.skills?.frameworks || []),
-              ...(data.skills?.tools || [])
-            ];
-            
-            // Extract unique keywords for GitHub analysis
-            const uniqueKeywords = [...new Set([
-              ...resumeSkills.map(s => String(s).toLowerCase()),
-              ...(data.semantic_analysis?.keywords || []),
-              ...(data.keywords || [])
-            ])].filter(k => k && k.length > 1);
-
-            const githubResponse = await fetch('http://localhost:5000/api/analyze-github', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                githubUsername: githubUsername,
-                jobDescription: data.job_description || '',
-                keywords: uniqueKeywords.slice(0, 30),
-                resumeText: data.raw_text || '',
-                resumeSkills: resumeSkills
-              }),
-            });
-
-            if (githubResponse.ok) {
-              const githubData = await githubResponse.json();
-              githubReport = githubData.report;
-              console.log('✅ GitHub analysis completed successfully');
-            } else {
-              console.error('❌ GitHub analysis failed:', githubResponse.status);
-            }
-          }
-        } catch (githubError) {
-          console.error('❌ GitHub analysis error:', githubError.message);
-          // Continue anyway - don't block navigation
+      // Extract profile analysis from backend response
+      if (data.profile_analysis) {
+        if (data.profile_analysis.github && !data.profile_analysis.github.error) {
+          githubReport = data.profile_analysis.github;
+          console.log(`  • GitHub: ✅ ${githubReport.overall_score}/100 (${githubReport.grade})`);
+        } else if (data.profile_analysis.github?.error) {
+          console.log(`  • GitHub: ❌ ${data.profile_analysis.github.error}`);
+        } else {
+          console.log('  • GitHub: ➖ Not found');
         }
-      }
-
-      // Analyze LeetCode/CP profile
-      if (hasLeetCode) {
-        try {
-          console.log('🔄 [2/2] Analyzing LeetCode/CP profile...');
-          
-          const leetcodeUrl = data.extracted_links.leetcode[0];
-          console.log('📌 LeetCode URL:', leetcodeUrl);
-
-          const cpResponse = await fetch('http://localhost:5000/api/analyze-competitive-profile', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              leetcodeUrl: leetcodeUrl,
-              resumeText: data.raw_text || '',
-              useLLM: true
-            }),
-          });
-
-          if (cpResponse.ok) {
-            const cpData = await cpResponse.json();
-            cpReport = cpData.report;
-            console.log('✅ LeetCode/CP analysis completed successfully');
-            console.log('📊 Score:', cpData.report?.overall_score || 'N/A');
-          } else {
-            const errorData = await cpResponse.json().catch(() => ({}));
-            console.error('❌ CP analysis failed:', cpResponse.status, errorData.error || 'Unknown');
-          }
-        } catch (cpError) {
-          console.error('❌ CP analysis error:', cpError.message);
-          // Continue anyway - don't block navigation
+        
+        if (data.profile_analysis.competitive_programming && !data.profile_analysis.competitive_programming.error) {
+          cpReport = data.profile_analysis.competitive_programming;
+          console.log(`  • CP: ✅ ${cpReport.overall_score}/100 (${cpReport.grade})`);
+        } else if (data.profile_analysis.competitive_programming?.error) {
+          console.log(`  • CP: ❌ ${data.profile_analysis.competitive_programming.error}`);
+        } else {
+          console.log('  • CP: ➖ Not found');
         }
+      } else {
+        console.log('  • No profile analysis available from backend');
       }
 
-      // Summary of completed analyses
-      console.log('\n📊 Analysis Summary:');
-      console.log(`  • Resume Analysis: ✅ Complete`);
-      console.log(`  • GitHub Report: ${githubReport ? '✅ Generated' : '➖ N/A'}`);
-      console.log(`  • CP Report: ${cpReport ? '✅ Generated' : '➖ N/A'}`);
-
-      // Store GitHub and CP reports if available
+      // Store reports in sessionStorage
       if (githubReport) {
         sessionStorage.setItem('githubReport', JSON.stringify(githubReport));
-        console.log('💾 GitHub report stored in sessionStorage');
+        console.log('💾 GitHub report stored');
       }
       if (cpReport) {
         sessionStorage.setItem('cpReport', JSON.stringify(cpReport));
-        console.log('💾 CP report stored in sessionStorage');
+        console.log('💾 CP report stored');
       }
 
       // All analyses complete - navigate to results

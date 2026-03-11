@@ -156,8 +156,8 @@ export default function ProjectVerification({ verification }) {
       </div>
 
       {/* Project Scoring Breakdown */}
-      <div className="mt-5 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border-2 border-indigo-200">
-        <h4 className="text-sm font-bold text-indigo-900 mb-3 flex items-center gap-2">
+      <div className="mt-5 p-4 bg-gradient-to-r from-cyan-50 to-blue-50 rounded-xl border-2 border-cyan-200">
+        <h4 className="text-sm font-bold text-cyan-900 mb-3 flex items-center gap-2">
           <Star className="w-4 h-4" />
           How Your Project Score is Calculated
         </h4>

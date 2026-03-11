@@ -10,10 +10,10 @@ const ResultsHeader = ({ fileName }) => {
   });
 
   return (
-    <div className="relative bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 rounded-2xl border-2 border-blue-200/50 p-8 mb-8 shadow-xl hover:shadow-2xl transition-all duration-500 animate-slide-down overflow-hidden">
+    <div className="relative bg-gradient-to-br from-cyan-50 via-blue-50 to-blue-100 rounded-2xl border-2 border-cyan-200/50 p-8 mb-8 shadow-xl hover:shadow-2xl transition-all duration-500 animate-slide-down overflow-hidden">
       {/* Decorative Background Elements */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-400 to-purple-500 opacity-10 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-pink-400 to-purple-500 opacity-10 rounded-full blur-3xl"></div>
+      <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-cyan-400 to-blue-500 opacity-10 rounded-full blur-3xl"></div>
+      <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-blue-400 to-cyan-500 opacity-10 rounded-full blur-3xl"></div>
       
       <div className="relative z-10">
         {/* Back Button */}
@@ -29,14 +29,14 @@ const ResultsHeader = ({ fileName }) => {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 opacity-20 blur-2xl rounded-full animate-pulse"></div>
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg relative z-10">
+              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500 to-blue-600 opacity-20 blur-2xl rounded-full animate-pulse"></div>
+              <div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg relative z-10">
                 <FileCheck className="w-8 h-8 text-white" />
               </div>
             </div>
             
             <div>
-              <h1 className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2 flex items-center gap-2">
+              <h1 className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-cyan-600 via-blue-600 to-blue-700 bg-clip-text text-transparent mb-2 flex items-center gap-2">
                 Your Resume Analysis
                 <Sparkles className="w-6 h-6 text-yellow-500 animate-pulse" />
               </h1>
@@ -46,9 +46,9 @@ const ResultsHeader = ({ fileName }) => {
                   <span className="text-sm font-semibold">Analyzed on: {currentDate}</span>
                 </div>
                 {fileName && (
-                  <div className="flex items-center gap-2 bg-blue-100/60 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-blue-200">
-                    <FileCheck className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm font-semibold text-blue-900">{fileName}</span>
+                  <div className="flex items-center gap-2 bg-cyan-100/60 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-cyan-200">
+                    <FileCheck className="w-4 h-4 text-cyan-600" />
+                    <span className="text-sm font-semibold text-cyan-900">{fileName}</span>
                   </div>
                 )}
               </div>
