@@ -1530,10 +1530,13 @@ def batch_analyze_profiles():
         }), 500
 
 if __name__ == '__main__':
+    port = int(os.getenv('PORT', '5000'))
+    debug = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+
     print("\n" + "="*70)
     print("🚀 ATS MASTER - AI SERVICE STARTING")
     print("="*70)
-    print("✅ Service URL: http://localhost:5000")
+    print(f"✅ Service URL: http://localhost:{port}")
     print("✅ AI Model: gemini-2.5-flash")
     print(f"✅ Temperature: {generation_config['temperature']} (high creativity)")
     print("\n📊 Core Capabilities:")
@@ -1553,4 +1556,4 @@ if __name__ == '__main__':
     print("   • Resume integration scoring (-3 to +8 points)")
     print("   • Each resume gets unique, personalized analysis")
     print("="*70 + "\n")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=debug)
