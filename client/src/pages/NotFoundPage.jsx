@@ -34,7 +34,7 @@ export default function NotFoundPage() {
           </button>
           <button
             onClick={() => navigate('/')}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 transition-colors"
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Home size={20} />
             Go Home
@@ -46,7 +46,7 @@ export default function NotFoundPage() {
           <h3 className="font-semibold text-gray-900 mb-2">Need help?</h3>
           <p className="text-gray-600 text-sm">
             If you believe this is an error, please contact support at{' '}
-            <a href="mailto:support@atsmaster.com" className="text-primary-600 font-semibold hover:underline">
+            <a href="mailto:support@atsmaster.com" className="text-blue-600 font-semibold hover:underline">
               support@atsmaster.com
             </a>
           </p>
