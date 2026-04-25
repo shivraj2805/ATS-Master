@@ -29,7 +29,7 @@ const initializeApp = async () => {
 
     // Start server
     app.listen(PORT, () => {
-      console.log(`✅ Server running on http://localhost:${PORT}`);
+      console.log(`✅ Server running on port ${PORT}`);
       console.log(`✅ MongoDB Connected`);
       console.log(`✅ AI Models Initialized`);
     });

@@ -17,6 +17,7 @@ import {
   TrendingUp,
   ExternalLink,
 } from 'lucide-react';
+import { getApiUrl, getAiServiceUrl } from '../../config/api';
 import ExtractedLinks from './ExtractedLinks';
 import ResumeProjects from './ResumeProjects';
 import ProjectVerification from './ProjectVerification';
@@ -196,7 +197,7 @@ export default function ResultsDashboard({ results, onReset }) {
         generation_date: new Date().toISOString()
       };
       
-      const response = await fetch('http://localhost:3001/api/download-report', {
+      const response = await fetch(getApiUrl('/api/download-report'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -257,7 +258,7 @@ export default function ResultsDashboard({ results, onReset }) {
     setOptimizationError(null);
 
     try {
-      const response = await fetch('http://localhost:3001/api/optimization/generate', {
+      const response = await fetch(getApiUrl('/api/optimization/generate'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -394,7 +395,7 @@ export default function ResultsDashboard({ results, onReset }) {
     
     console.log('✅ Final validated GitHub username:', githubUsername);
     console.log('✅ Source:', sourceUsed);
-    console.log('✅ Sending to API: http://localhost:5000/api/analyze-github');
+    console.log(`✅ Sending to AI service: ${getAiServiceUrl('/api/analyze-github')}`);
     console.log('✅ This username is DYNAMICALLY extracted - NOT hardcoded');
     console.log('=================================');
 
@@ -435,7 +436,7 @@ export default function ResultsDashboard({ results, onReset }) {
       
       console.log('📋 Sending keywords to GitHub analysis:', uniqueKeywords.slice(0, 20));
       
-      const response = await fetch('http://localhost:5000/api/analyze-github', {
+      const response = await fetch(getAiServiceUrl('/api/analyze-github'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -515,7 +516,7 @@ export default function ResultsDashboard({ results, onReset }) {
     try {
       console.log('Analyzing LeetCode profile:', leetcodeUrl);
       
-      const response = await fetch('http://localhost:5000/api/analyze-competitive-profile', {
+      const response = await fetch(getAiServiceUrl('/api/analyze-competitive-profile'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Star, Quote, Pencil, CheckCircle, ArrowRight } from 'lucide-react';
+import { getApiUrl } from '../../config/api';
 import { useNavigate } from 'react-router-dom';
 import ReviewModal from '../ui/ReviewModal';
 import { useAuth } from '../../contexts/AuthContext';
@@ -19,7 +20,7 @@ const Testimonials = () => {
 
   const fetchReviews = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/reviews');
+      const response = await fetch(getApiUrl('/api/reviews'));
       const data = await response.json();
 
       if (data.success) {

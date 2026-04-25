@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Facebook, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { getApiUrl } from '../../config/api';
 
 export default function Footer() {
   const [reviewCount, setReviewCount] = useState(0);
 
   useEffect(() => {
     // Fetch review count
-    fetch('http://localhost:3001/api/reviews')
+    fetch(getApiUrl('/api/reviews'))
       .then(res => res.json())
       .then(data => {
         if (data.success && data.count) {

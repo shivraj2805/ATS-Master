@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Star, Send } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { getApiUrl } from '../../config/api';
 
 export default function ReviewModal({ isOpen, onClose, onSubmitSuccess }) {
   const { token } = useAuth();
@@ -38,7 +39,7 @@ export default function ReviewModal({ isOpen, onClose, onSubmitSuccess }) {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3001/api/reviews', {
+      const response = await fetch(getApiUrl('/api/reviews'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

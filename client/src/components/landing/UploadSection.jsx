@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Upload, FileText, X, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import TermsModal from '../ui/TermsModal';
+import { getApiUrl } from '../../config/api';
 
 export default function UploadSection() {
   const navigate = useNavigate();
@@ -110,7 +111,7 @@ export default function UploadSection() {
     if (company) formData.append('company', company);
 
     try {
-      const response = await fetch('http://localhost:3001/api/resume/analyze', {
+      const response = await fetch(getApiUrl('/api/resume/analyze'), {
         method: 'POST',
         body: formData,
       });

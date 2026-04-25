@@ -3,6 +3,7 @@ import { Star, Quote, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import { getApiUrl } from '../config/api';
 
 const AllReviewsPage = () => {
   const navigate = useNavigate();
@@ -16,7 +17,7 @@ const AllReviewsPage = () => {
 
   const fetchReviews = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/reviews');
+      const response = await fetch(getApiUrl('/api/reviews'));
       const data = await response.json();
 
       if (data.success) {

@@ -1536,7 +1536,7 @@ if __name__ == '__main__':
     print("\n" + "="*70)
     print("🚀 ATS MASTER - AI SERVICE STARTING")
     print("="*70)
-    print(f"✅ Service URL: http://localhost:{port}")
+    print(f"✅ Service listening on port {port}")
     print("✅ AI Model: gemini-2.5-flash")
     print(f"✅ Temperature: {generation_config['temperature']} (high creativity)")
     print("\n📊 Core Capabilities:")

@@ -5,7 +5,12 @@ const fs = require('fs');
 class LinkExtractorService {
   constructor() {
     // Python AI service URL (same service for consistency)
-    this.baseURL = process.env.AI_SERVICE_URL || 'http://localhost:5000';
+    this.baseURL = process.env.AI_SERVICE_URL || process.env.PYTHON_SERVICE_URL;
+
+    if (!this.baseURL) {
+      throw new Error('AI_SERVICE_URL is required');
+    }
+
     this.client = axios.create({
       baseURL: this.baseURL,
       timeout: 30000, // 30 seconds
