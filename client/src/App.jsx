@@ -8,6 +8,7 @@ import ProfilePage from './pages/ProfilePage';
 import CPResultPage from './pages/CPResultPage';
 import GitHubResultPage from './pages/GitHubResultPage';
 import AllReviewsPage from './pages/AllReviewsPage';
+import NotFoundPage from './pages/NotFoundPage';
 import './App.css';
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Router>
     </AuthProvider>
