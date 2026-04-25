@@ -41,17 +41,19 @@ export default function Hero() {
                 <br />
                 <span className="text-sm text-gray-500">PDF & DOCX only. Max 2MB file size.</span>
               </p>
-              <button
-                onClick={() => {
-                  const uploadSection = document.getElementById('upload');
-                  if (uploadSection) {
-                    uploadSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }
-                }}
-                className="px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-lg font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105"
-              >
-                Upload Your Resume
-              </button>
+              <div className="flex gap-3 flex-col sm:flex-row justify-center">
+                <button
+                  onClick={() => {
+                    const uploadSection = document.getElementById('upload');
+                    if (uploadSection) {
+                      uploadSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                  }}
+                  className="px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-lg font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                >
+                  Upload Your Resume
+                </button>
+              </div>
               <div className="flex items-center justify-center gap-2 mt-4 text-sm text-gray-600">
                 <Shield className="w-4 h-4 text-green-600" />
                 <span>Privacy guaranteed</span>

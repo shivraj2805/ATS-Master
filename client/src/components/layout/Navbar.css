@@ -50,6 +50,27 @@ nav ul li a:hover {
     color: #3b82f6; /* blue-500 */
 }
 
+/* Demo link styling */
+nav ul li .demo-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 6px 14px;
+    background: linear-gradient(135deg, #06b6d4, #3b82f6);
+    color: white;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 16px;
+    transition: all 0.3s;
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+}
+
+nav ul li .demo-link:hover {
+    color: white;
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(6, 182, 212, 0.4);
+}
+
 nav ul li .btn {
     display: inline-flex;
     align-items: center;

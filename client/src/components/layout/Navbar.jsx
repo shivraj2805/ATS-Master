@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { User, LogOut, LogIn, Menu, X, Sparkles, ChevronDown } from 'lucide-react';
+import { User, LogOut, LogIn, Menu, X, Sparkles, ChevronDown, Play } from 'lucide-react';
 import './Navbar.css';
 
 export default function Navbar() {
@@ -120,6 +120,13 @@ export default function Navbar() {
               <li>
                 <a onClick={() => { scrollToSection('faq'); setMobileMenuOpen(false); }}>
                   FAQ
+                </a>
+              </li>
+
+              <li>
+                <a href="https://drive.google.com/file/d/1uHXCcIivdMlcJG-iVCFQRe5uftH68cST/view" target="_blank" rel="noopener noreferrer" className="demo-link flex items-center gap-2">
+                  <Play size={16} />
+                  Demo
                 </a>
               </li>
 

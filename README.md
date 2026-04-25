@@ -7,6 +7,12 @@
 
 ---
 
+## 📹 [View Demo](https://drive.google.com/file/d/1uHXCcIivdMlcJG-iVCFQRe5uftH68cST/view)
+
+Watch a live demonstration of ATSMaster in action!
+
+---
+
 ## 🎯 What is ATSMaster?
 
 ATSMaster is a cutting-edge full-stack application that revolutionizes the recruitment process by combining:
