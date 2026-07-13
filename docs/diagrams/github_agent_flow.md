@@ -8,26 +8,26 @@ This document details the architecture and execution flow of the **GitHub Qualit
 
 ```mermaid
 graph TD
-    Start([Start Analysis]) --> ParseInput[1. parse_input]
+    StartNode(["Start Analysis"]) --> ParseInput["1. parse_input"]
     
-    subgraph Input Processing
-        ParseInput --> |Clean Keywords & Initialize State| FetchProfile[2. fetch_profile]
+    subgraph InputProcessing ["Input Processing"]
+        ParseInput --> |Clean Keywords & Initialize State| FetchProfile["2. fetch_profile"]
     end
 
-    subgraph Data Extraction (GitHub API)
-        FetchProfile --> |GET /users/username| FetchRepos[3. fetch_repos]
-        FetchRepos --> |GET /users/username/repos| ScoreRepos[4. score_all_repos]
+    subgraph DataExtraction ["Data Extraction (GitHub API)"]
+        FetchProfile --> |GET /users/username| FetchRepos["3. fetch_repos"]
+        FetchRepos --> |GET /users/username/repos| ScoreRepos["4. score_all_repos"]
     end
 
-    subgraph Repo Evaluation & Scoring
+    subgraph RepoEvaluation ["Repo Evaluation & Scoring"]
         ScoreRepos --> SortRepos[Sort repos by pushed_at]
-        SortRepos --> DeepFilter{Is in Top 35 Repos?}
+        SortRepos --> DeepFilter{"Is in Top 35 Repos?"}
         
-        DeepFilter -->|Yes: Run Deep Check| FetchFull[GET /repos/owner/repo for topics]
-        FetchFull --> FetchComm[GET .../community/profile]
-        FetchComm --> CheckCI[Check CI Workflows & Tests]
-        CheckCI --> FetchReadme[GET .../readme]
-        FetchReadme --> DetectFiles[Detect Dockerfile / package.json]
+        DeepFilter -->|Yes: Run Deep Check| FetchFull["GET /repos/owner/repo for topics"]
+        FetchFull --> FetchComm["GET .../community/profile"]
+        FetchComm --> CheckCI["Check CI Workflows & Tests"]
+        CheckCI --> FetchReadme["GET .../readme"]
+        FetchReadme --> DetectFiles["Detect Dockerfile / package.json"]
         
         DeepFilter -->|No| UseDefaults[Use Default Baseline Stats]
         
@@ -35,23 +35,25 @@ graph TD
         UseDefaults --> CalcRepoScore
     end
 
-    subgraph Aggregate Scoring
-        CalcRepoScore --> ProfileScoring[5. overall_scoring]
-        ProfileScoring --> CalcProfile[Calculate Profile Score 25%]
-        CalcProfile --> CalcRepoAvg[Calculate Repo Average Score 55% from Top 40% Repos]
-        CalcRepoAvg --> AddBonuses[Add Star & Strong Repo Bonuses]
+    subgraph AggregateScoring ["Aggregate Scoring"]
+        CalcRepoScore --> ProfileScoring["5. overall_scoring"]
+        ProfileScoring --> CalcProfile["Calculate Profile Score 25%"]
+        CalcRepoAvg["Calculate Repo Average Score 55% from Top 40% Repos"]
+        CalcProfile --> CalcRepoAvg
+        AddBonuses["Add Star & Strong Repo Bonuses"]
+        CalcRepoAvg --> AddBonuses
         AddBonuses --> ClampScore[Clamp Score to 0-100]
     end
 
-    subgraph Summarization & Finalization
-        ClampScore --> LLMSummary[6. llm_summary]
-        LLMSummary --> |Gemini 2.5 Flash API| Finalize[7. finalize]
-        Finalize --> BuildFinal[8. build_final_output]
-        BuildFinal --> End([Return Recruiter JSON])
+    subgraph SummarizationFinalization ["Summarization & Finalization"]
+        ClampScore --> LLMSummary["6. llm_summary"]
+        LLMSummary --> |Gemini 2.5 Flash API| Finalize["7. finalize"]
+        Finalize --> BuildFinal["8. build_final_output"]
+        BuildFinal --> EndNode(["Return Recruiter JSON"])
     end
 
-    style Start fill:#4F46E5,stroke:#312E81,stroke-width:2px,color:#fff
-    style End fill:#4F46E5,stroke:#312E81,stroke-width:2px,color:#fff
+    style StartNode fill:#4F46E5,stroke:#312E81,stroke-width:2px,color:#fff
+    style EndNode fill:#4F46E5,stroke:#312E81,stroke-width:2px,color:#fff
     style DeepFilter fill:#F59E0B,stroke:#78350F,stroke-width:2px
     style LLMSummary fill:#10B981,stroke:#064E3B,stroke-width:2px,color:#fff
 ```

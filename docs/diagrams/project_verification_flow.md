@@ -8,35 +8,35 @@ This document details the two-stage execution flow of the **Resume Project Verif
 
 ```mermaid
 graph TD
-    Start([Upload Resume]) --> ParseResume[Parse Resume Text]
+    StartNode(["Upload Resume"]) --> ParseResume[Parse Resume Text]
     
-    subgraph Phase 1: Project Extraction (Flask API)
-        ParseResume --> ExtrReq[POST /api/extract-projects]
-        ExtrReq --> GeminiExtr[Invoke Gemini 2.5 Flash]
+    subgraph Phase1 ["Phase 1: Project Extraction (Flask API)"]
+        ParseResume --> ExtrReq["POST /api/extract-projects"]
+        ExtrReq --> GeminiExtr["Invoke Gemini 2.5 Flash"]
         GeminiExtr --> |Extract name, description, tech| NormProj[Normalize Project Structures]
         NormProj --> ProjList[Generate Project JSON List]
     end
 
-    subgraph Phase 2: Project Verification (Flask API)
-        ProjList --> VerifyReq[POST /api/verify-projects]
-        VerifyReq --> FetchRepos[GET /users/username/repos]
+    subgraph Phase2 ["Phase 2: Project Verification (Flask API)"]
+        ProjList --> VerifyReq["POST /api/verify-projects"]
+        VerifyReq --> FetchRepos["GET /users/username/repos"]
         
-        subgraph Per-Project Match Loop
+        subgraph ProjectLoopSub ["Per-Project Match Loop"]
             FetchRepos --> ProjectLoop[For each Resume Project...]
             ProjectLoop --> RoughMatch[Compute Jaccard token overlap with all repos]
             RoughMatch --> SelectTop3[Select Top 3 Candidate Repos]
-            SelectTop3 --> FetchReadme[GET README files for Top 2 Candidates]
+            SelectTop3 --> FetchReadme["GET README files for Top 2 Candidates"]
             FetchReadme --> RefinedMatch[Recalculate match score using README context]
             RefinedMatch --> BestCandidate[Select best-matching repository]
-            BestCandidate --> CheckPresence{Refined Score >= 55?}
+            BestCandidate --> CheckPresence{"Refined Score >= 55?"}
             
-            CheckPresence -->|No: NOT_FOUND| SetNotFound[Status: NOT_FOUND, Conf: 0.20]
-            CheckPresence -->|Yes: FOUND / MAYBE| FetchLangs[GET /repos/owner/repo/languages]
+            CheckPresence -->|No: NOT_FOUND| SetNotFound["Status: NOT_FOUND, Conf: 0.20"]
+            CheckPresence -->|Yes: FOUND / MAYBE| FetchLangs["GET /repos/owner/repo/languages"]
             FetchLangs --> CalcQuality[Calculate Repository Quality Score]
         end
     end
 
-    subgraph Score Aggregation (Node.js Controller)
+    subgraph ScoreAggregation ["Score Aggregation (Node.js Controller)"]
         SetNotFound --> CompileResults[Aggregate Results & Summarize]
         CalcQuality --> CompileResults
         CompileResults --> CalcVerifScore[Calculate Verification Score]
@@ -47,10 +47,10 @@ graph TD
         CredPenalty --> FinalProjScore[Compute Final Verified Project Score]
     end
 
-    FinalProjScore --> End([Return Final Report JSON])
+    FinalProjScore --> EndNode(["Return Final Report JSON"])
 
-    style Start fill:#4F46E5,stroke:#312E81,stroke-width:2px,color:#fff
-    style End fill:#4F46E5,stroke:#312E81,stroke-width:2px,color:#fff
+    style StartNode fill:#4F46E5,stroke:#312E81,stroke-width:2px,color:#fff
+    style EndNode fill:#4F46E5,stroke:#312E81,stroke-width:2px,color:#fff
     style CheckPresence fill:#F59E0B,stroke:#78350F,stroke-width:2px
     style GeminiExtr fill:#10B981,stroke:#064E3B,stroke-width:2px,color:#fff
 ```

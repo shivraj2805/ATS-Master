@@ -8,24 +8,24 @@ This document details the architecture and execution flow of the **Competitive P
 
 ```mermaid
 graph TD
-    Start([Start CP Analysis]) --> RecvURL[Receive LeetCode URL]
+    StartNode(["Start CP Analysis"]) --> RecvURL[Receive LeetCode URL]
     
-    subgraph URL Normalization
-        RecvURL --> NormURL[Normalize URL: /u/username -> /username]
-        NormURL --> ExtractUser[Extract username via safe_username_from_url]
+    subgraph URLNormalization ["URL Normalization"]
+        RecvURL --> NormURL["Normalize URL: /u/username -> /username"]
+        NormURL --> ExtractUser["Extract username via safe_username_from_url"]
     end
 
-    subgraph Data Extraction (GraphQL)
-        ExtractUser --> GraphQLReq[POST query userProfile to leetcode.com/graphql]
+    subgraph DataExtraction ["Data Extraction (GraphQL)"]
+        ExtractUser --> GraphQLReq["POST query userProfile to leetcode.com/graphql"]
         GraphQLReq --> ParseStats[Parse solved_total, easy, medium, hard]
     end
 
-    subgraph Platform Quality Scoring
-        ParseStats --> CalcVolume[1. Volume Score: up to 35 pts]
-        ParseStats --> CalcDepth[2. Difficulty Depth: up to 40 pts]
-        ParseStats --> CalcBalance[3. Balance Ratio: up to 15 pts]
-        ParseStats --> CalcContest[4. Contest Bonus: up to 10 pts]
-        ParseStats --> CalcConsist[5. Consistency Bonus: up to 8 pts]
+    subgraph PlatformScoring ["Platform Quality Scoring"]
+        ParseStats --> CalcVolume["1. Volume Score: up to 35 pts"]
+        ParseStats --> CalcDepth["2. Difficulty Depth: up to 40 pts"]
+        ParseStats --> CalcBalance["3. Balance Ratio: up to 15 pts"]
+        ParseStats --> CalcContest["4. Contest Bonus: up to 10 pts"]
+        ParseStats --> CalcConsist["5. Consistency Bonus: up to 8 pts"]
         
         CalcVolume --> CombineScores[Sum & Clamp to 0-100]
         CalcDepth --> CombineScores
@@ -34,24 +34,24 @@ graph TD
         CalcConsist --> CombineScores
     end
 
-    subgraph Resume-CP Insights
-        CombineScores --> CalcResumeCP[Calculate Stable Resume Score 0-100]
-        CalcResumeCP --> GenATSSummary[Generate ATS CP Summary]
+    subgraph ResumeCPInsights ["Resume-CP Insights"]
+        CombineScores --> CalcResumeCP["Calculate Stable Resume Score 0-100"]
+        CalcResumeCP --> GenATSSummary["Generate ATS CP Summary"]
     end
 
-    subgraph Gemini AI Enrichment
-        CombineScores --> CheckLLM{Is Gemini Enabled?}
-        CheckLLM -->|Yes| PromptGemini[POST Payload to Gemini 2.5 Flash]
-        PromptGemini --> ParseGeminiJSON[Parse strict Small JSON Schema]
-        CheckLLM -->|No| FallbackInference[Determine Inferred Skills Deterministically]
+    subgraph GeminiEnrichment ["Gemini AI Enrichment"]
+        CombineScores --> CheckLLM{"Is Gemini Enabled?"}
+        CheckLLM -->|Yes| PromptGemini["POST Payload to Gemini 2.5 Flash"]
+        PromptGemini --> ParseGeminiJSON["Parse strict Small JSON Schema"]
+        CheckLLM -->|No| FallbackInference["Determine Inferred Skills Deterministically"]
         ParseGeminiJSON --> AssembleReport[Assemble Final AgentReport]
         FallbackInference --> AssembleReport
     end
 
-    AssembleReport --> End([Return CP Analysis JSON])
+    AssembleReport --> EndNode(["Return CP Analysis JSON"])
 
-    style Start fill:#4F46E5,stroke:#312E81,stroke-width:2px,color:#fff
-    style End fill:#4F46E5,stroke:#312E81,stroke-width:2px,color:#fff
+    style StartNode fill:#4F46E5,stroke:#312E81,stroke-width:2px,color:#fff
+    style EndNode fill:#4F46E5,stroke:#312E81,stroke-width:2px,color:#fff
     style CheckLLM fill:#F59E0B,stroke:#78350F,stroke-width:2px
     style PromptGemini fill:#10B981,stroke:#064E3B,stroke-width:2px,color:#fff
 ```

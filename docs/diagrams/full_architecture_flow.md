@@ -8,19 +8,19 @@ This document details the complete end-to-end architecture and system interactio
 
 ```mermaid
 graph TB
-    subgraph Client Layer
+    subgraph ClientLayer ["Client Layer"]
         WebUI[React/Next.js Client] <--> |REST API / JSON| NodeServer
     end
 
-    subgraph Node.js Backend Server
+    subgraph NodeServerSub ["Node.js Backend Server"]
         NodeServer[Express Server index.js]
         
-        subgraph Controllers
+        subgraph ControllersSub ["Controllers"]
             ResumeCtrl[resumeController.js]
             ReportCtrl[reportController.js]
         end
 
-        subgraph Services
+        subgraph ServicesSub ["Services"]
             ParserSrv[resumeParser.js]
             SkillsSrv[skillExtractor.js]
             DomainSrv[domainClassifier.js]
@@ -40,11 +40,11 @@ graph TB
         ResumeCtrl --> ScorerSrv
     end
 
-    subgraph Database Layer
+    subgraph DatabaseLayer ["Database Layer"]
         Mongo[(MongoDB)] <--> ResumeCtrl
     end
 
-    subgraph Python AI Service
+    subgraph PythonAIService ["Python AI Service"]
         FlaskSrv[Flask Application app.py]
         
         LinkExtr[link-extractor.py]
@@ -62,7 +62,7 @@ graph TB
         FlaskSrv --> ProjVerif
     end
 
-    subgraph External Interfaces
+    subgraph ExternalInterfaces ["External Interfaces"]
         LinkExtr -->|PDF Link Parsing| PDFLocal[Local File System]
         GHAgent -->|REST Queries| GitHubAPI[GitHub REST API]
         CPAgent -->|GraphQL POST| LeetCodeGraphQL[LeetCode GraphQL API]
