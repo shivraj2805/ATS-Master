@@ -53,32 +53,53 @@ ATSMaster is a cutting-edge full-stack application that revolutionizes the recru
 
 ---
 
-## 🏗️ Architecture
+## 🔄 Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Frontend (React)                        │
-│  Resume Upload │ Dashboard │ Analytics │ Comparison View    │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-┌────────────────────────┴────────────────────────────────────┐
-│                   Backend (Node.js/Express)                  │
-│  API Gateway │ Authentication │ File Processing             │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-        ┌────────────────┼────────────────┐
-        │                │                │
-┌───────▼──────┐  ┌─────▼─────┐  ┌──────▼──────┐
-│   NLP Engine │  │  Database │  │ Agent Layer │
-│  (spaCy/NLP) │  │  (MongoDB)│  │ (LangGraph) │
-└──────────────┘  └───────────┘  └─────┬───────┘
-                                        │
-                    ┌───────────────────┼───────────────────┐
-                    │                   │                   │
-            ┌───────▼──────┐    ┌──────▼──────┐    ┌──────▼──────┐
-            │    GitHub    │    │  LinkedIn   │    │  Portfolio  │
-            │   Verifier   │    │  Verifier   │    │  Verifier   │
-            └──────────────┘    └─────────────┘    └─────────────┘
+```mermaid
+graph TD
+    StartNode(["1. Recruiter Uploads Resume PDF/DOCX & Inputs Job Description"]) --> ParseResume["2. Server Parses Text & Extracts Raw Skills"]
+    
+    ParseResume --> ExtractLinks["3. Scrapes Profile Links (GitHub, LinkedIn, LeetCode, Portfolio)"]
+    
+    subgraph ParallelProcessing ["4. Concurrent Profile & Project Analysis (Promise.all)"]
+        ExtractLinks --> |GitHub Link Found| GHAgent["A. GitHub Quality Agent (LangGraph)<br>- Audits Profile & Repo History<br>- Generates Summary via <b>gemini-2.5-flash</b><br>- Assigns GitHub Score (0-100)"]
+        ExtractLinks --> |LeetCode Link Found| CPAgent["B. LeetCode CP Agent (GraphQL)<br>- Checks DSA Solved Counts<br>- Summarizes Profile via <b>gemini-2.5-flash</b><br>- Assigns CP Score (0-100)"]
+        ExtractLinks --> |Resume Text| ProjExtr["C. Project Extractor (Gemini)<br>- Extracts Projects & Stack via <b>gemini-2.5-flash</b><br>- Generates Structured Project JSON"]
+    end
+    
+    GHAgent --> ProjectVerify["5. Project Verifier Agent<br>- Matches Resume Projects to GitHub Repos<br>- Performs Jaccard & README Checks<br>- Assigns match status (FOUND, MAYBE, NOT_FOUND)<br>- Calculates Project Score (0-100)"]
+    CPAgent --> ProjectVerify
+    ProjExtr --> ProjectVerify
+    
+    ParseResume --> SemanticMatch["6. Semantic JD Matcher<br>- Computes NLP similarity to Job Description<br>- Generates Embeddings via local <b>Xenova/all-MiniLM-L6-v2</b> model<br>- Categorizes Matched, Partial, and Missing Skills"]
+    
+    ProjectVerify --> ScoringEngine["7. Unified Scoring Engine<br>- Computes Base Resume Score<br>- Computes Proof Score (30% GitHub + 40% Projects + 30% CP)<br>- Calculates Final ATS Score (60% Resume + 40% Proof)"]
+    
+    SemanticMatch --> ScoringEngine
+    
+    ScoringEngine --> SaveMongo["8. Persists parsed candidate resume & analysis report to MongoDB"]
+    
+    SaveMongo --> EndNode(["9. Dashboard populates score cards, candidate breakdown, risk flags & suggestions"])
+
+    %% Enhancement Flow
+    EndNode --> TriggerEnhance{"10. Trigger Optimization & Enhancements?"}
+    TriggerEnhance -->|Yes| OptimizeSummary["A. Optimize Professional Summary<br>- Tailor summary via <b>gemini-2.5-flash</b>"]
+    TriggerEnhance -->|Yes| EnhanceBullets["B. Enhance Bullet Points<br>- Improve action verbs & metrics via <b>gemini-2.5-flash</b>"]
+    TriggerEnhance -->|Yes| KeywordSuggestions["C. Keyword Suggestions<br>- Match missing keywords via <b>gemini-2.5-flash</b>"]
+    TriggerEnhance -->|Yes| GenerateCoverLetter["D. Generate Cover Letter<br>- Create custom cover letter via <b>gemini-2.5-flash</b>"]
+
+    OptimizeSummary --> UpdateDashboard["11. Display Enhanced Resume & Download Optimized Files"]
+    EnhanceBullets --> UpdateDashboard
+    KeywordSuggestions --> UpdateDashboard
+    GenerateCoverLetter --> UpdateDashboard
+    UpdateDashboard --> FinishNode([Recruiter Completes Audit])
+
+    style StartNode fill:#4F46E5,stroke:#312E81,stroke-width:2px,color:#fff
+    style EndNode fill:#4F46E5,stroke:#312E81,stroke-width:2px,color:#fff
+    style ParallelProcessing fill:#F3F4F6,stroke:#D1D5DB,stroke-width:2px
+    style ScoringEngine fill:#10B981,stroke:#064E3B,stroke-width:2px,color:#fff
+    style TriggerEnhance fill:#F59E0B,stroke:#78350F,stroke-width:2px
+    style FinishNode fill:#4F46E5,stroke:#312E81,stroke-width:2px,color:#fff
 ```
 
 ---
