@@ -1,0 +1,44 @@
+services:
+  client:
+    container_name: atsmaster-client
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    depends_on:
+      - server
+      - python-ai-service
+    restart: unless-stopped
+
+  server:
+    container_name: atsmaster-server
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      MONGODB_URI: ${MONGODB_URI:-mongodb://host.docker.internal:27017/atsmaster}
+      JWT_SECRET: ${JWT_SECRET:-your_jwt_secret}
+      JWT_EXPIRE: ${JWT_EXPIRE:-7d}
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:5173}
+      AI_SERVICE_URL: http://python-ai-service:5000
+      PYTHON_SERVICE_URL: http://python-ai-service:5000
+    depends_on:
+      - python-ai-service
+    restart: unless-stopped
+
+  python-ai-service:
+    container_name: atsmaster-python-ai
+    build:
+      context: ./python-ai-service
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      FLASK_ENV: ${FLASK_ENV:-production}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+    restart: unless-stopped
