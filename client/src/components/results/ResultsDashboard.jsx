@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -449,8 +449,14 @@ export default function ResultsDashboard({ results, onReset }) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to analyze GitHub profile');
+        // Guard against HTML error pages (e.g. 404 from Vite dev server) being parsed as JSON
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `GitHub analysis failed (HTTP ${response.status})`);
+        } else {
+          throw new Error(`GitHub analysis failed (HTTP ${response.status}). Check that the AI service is running on port 5000.`);
+        }
       }
 
       const data = await response.json();
@@ -528,8 +534,14 @@ export default function ResultsDashboard({ results, onReset }) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to analyze competitive programming profile');
+        // Guard against HTML error pages being parsed as JSON
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `CP analysis failed (HTTP ${response.status})`);
+        } else {
+          throw new Error(`CP analysis failed (HTTP ${response.status}). Check that the AI service is running on port 5000.`);
+        }
       }
 
       const data = await response.json();
@@ -575,8 +587,17 @@ export default function ResultsDashboard({ results, onReset }) {
     }
   };
 
+  // Guard against React StrictMode double-invocation in development.
+  // In dev mode, React intentionally mounts → unmounts → remounts each component.
+  // This ref persists across the remount and prevents a second real API call.
+  const autoAnalyzeCalledRef = useRef(false);
+
   // Auto-trigger GitHub and CP analyses on component mount
   useEffect(() => {
+    // Prevent duplicate calls from React StrictMode double-mount in development
+    if (autoAnalyzeCalledRef.current) return;
+    autoAnalyzeCalledRef.current = true;
+
     const autoAnalyze = async () => {
       // Auto-analyze GitHub if profile exists and not already analyzed
       if ((results.candidate?.github || results.extracted_links?.github?.length > 0) && !githubReport) {

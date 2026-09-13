@@ -1,6 +1,9 @@
 const normalizeBaseUrl = (value, fallback) => {
-  const candidate = (value ?? fallback ?? '').trim();
-  return candidate.replace(/\/+$/, '');
+  // Use value only if it is a non-empty string; otherwise fall back to the default.
+  // This ensures VITE_AI_SERVICE_URL='' still uses the '/python-api' fallback,
+  // preventing requests from being misrouted through the Express /api proxy.
+  const candidate = (value && value.trim()) || (fallback ?? '');
+  return candidate.trim().replace(/\/+$/, '');
 };
 
 const buildUrl = (baseUrl, path) => {

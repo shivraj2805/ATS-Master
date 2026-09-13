@@ -274,7 +274,7 @@ export default function ProjectVerification({ verification }) {
                           </span>
                         </div>
 
-                        {/* Quality Signals */}
+                    {/* Quality Signals */}
                         {result.quality.signals && result.quality.signals.length > 0 && (
                           <div className="mt-2">
                             <div className="text-xs text-gray-600 space-y-1">
@@ -286,6 +286,46 @@ export default function ProjectVerification({ verification }) {
                               ))}
                             </div>
                           </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Match Breakdown — "Why it matched" */}
+                    {result.match_breakdown && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <p className="text-xs font-semibold text-gray-600 mb-2">Why it matched:</p>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Name Match</span>
+                            <span className={`font-bold ${result.match_breakdown.name_match_pct >= 70 ? 'text-green-600' : result.match_breakdown.name_match_pct >= 40 ? 'text-yellow-600' : 'text-red-500'}`}>
+                              {result.match_breakdown.name_match_pct}%
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Description</span>
+                            <span className={`font-bold ${result.match_breakdown.content_match_pct >= 50 ? 'text-green-600' : result.match_breakdown.content_match_pct >= 25 ? 'text-yellow-600' : 'text-gray-500'}`}>
+                              {result.match_breakdown.content_match_pct}%
+                            </span>
+                          </div>
+                          {result.match_breakdown.tech_match_pct > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">Tech Stack</span>
+                              <span className={`font-bold ${result.match_breakdown.tech_match_pct >= 50 ? 'text-green-600' : 'text-yellow-600'}`}>
+                                {result.match_breakdown.tech_match_pct}%
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Overall Score</span>
+                            <span className={`font-bold ${result.match_breakdown.overall_confidence_pct >= 65 ? 'text-green-700' : result.match_breakdown.overall_confidence_pct >= 40 ? 'text-yellow-600' : 'text-red-500'}`}>
+                              {result.match_breakdown.overall_confidence_pct}/100
+                            </span>
+                          </div>
+                        </div>
+                        {result.match_breakdown.name_reason && (
+                          <p className="text-xs text-gray-400 mt-1 italic">
+                            Name: {result.match_breakdown.name_reason}
+                          </p>
                         )}
                       </div>
                     )}

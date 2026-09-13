@@ -10,7 +10,7 @@ class AIService {
 
     this.client = axios.create({
       baseURL: this.baseURL,
-      timeout: 30000, // 30 seconds
+      timeout: 120000, // 120 seconds — GitHub API + Gemini analysis can take 60-90s
       headers: {
         'Content-Type': 'application/json'
       }
@@ -159,11 +159,15 @@ class AIService {
       });
       return response.data;
     } catch (error) {
-      console.error('GitHub analysis error:', error.message);
+      const msg = error.response?.data?.error || error.message || 'Failed to analyze GitHub profile';
+      console.error('GitHub analysis error:', msg);
       if (error.response?.status === 404) {
-        throw new Error('GitHub user not found');
+        throw new Error(`GitHub user not found: "${githubUsername}"`);
       }
-      throw new Error('Failed to analyze GitHub profile');
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        throw new Error(`GitHub API authentication/rate-limit error: ${msg}`);
+      }
+      throw new Error(msg);
     }
   }
 
@@ -180,8 +184,9 @@ class AIService {
       });
       return response.data;
     } catch (error) {
-      console.error('Competitive profile analysis error:', error.message);
-      throw new Error('Failed to analyze competitive programming profile');
+      const msg = error.response?.data?.error || error.message || 'Failed to analyze competitive programming profile';
+      console.error('Competitive profile analysis error:', msg);
+      throw new Error(msg);
     }
   }
 

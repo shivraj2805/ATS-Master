@@ -13,7 +13,7 @@ class LinkExtractorService {
 
     this.client = axios.create({
       baseURL: this.baseURL,
-      timeout: 30000, // 30 seconds
+      timeout: 60000, // 60 seconds — PDF link extraction can take time on large resumes
     });
   }
 

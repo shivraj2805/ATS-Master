@@ -204,52 +204,208 @@ def fetch_commits_count_estimate(owner: str, repo: str) -> Optional[int]:
 
 
 # ---------------------------
-# Matching
+# Matching helpers
 # ---------------------------
 
-def compute_match_score(project_name: str, project_desc: str, repo: Dict[str, Any], readme_text: str) -> int:
+def name_flat(s: str) -> str:
+    """Strip ALL separators (hyphens, underscores, spaces, dots) and lowercase.
+    'ATSMaster' → 'atsmaster'
+    'ATS-Master' → 'atsmaster'
+    'ATS_Master' → 'atsmaster'
+    'ats master' → 'atsmaster'
     """
-    Score 0-100 based on:
-    - name similarity
-    - repo description & readme overlap
-    - homepage/liveUrl is not available here (you can add if you pass it)
+    return re.sub(r'[-_\s.]', '', s).lower()
+
+
+def camel_split_tokens(s: str) -> List[str]:
+    """Split a CamelCase / hyphenated / underscored name into lowercase tokens.
+    'ATSMaster'  → ['ats', 'master']
+    'ATS-Master' → ['ats', 'master']
+    'KrushiSetu' → ['krushi', 'setu']
     """
-    p_name = normalize_text(project_name)
-    r_name = normalize_text(repo.get("name", ""))
+    # Insert space before an uppercase letter that follows a lowercase letter
+    s = re.sub(r'([a-z])([A-Z])', r'\1 \2', s)
+    # Insert space between a run of uppercase and the next uppercase+lowercase
+    s = re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1 \2', s)
+    # Replace any remaining separator with a space
+    s = re.sub(r'[-_./]', ' ', s)
+    return [t.lower() for t in s.split() if len(t) >= 2]
 
-    # Name scoring
-    score = 0
-    if p_name == r_name and p_name:
-        score += 65
-    elif p_name and r_name and (p_name in r_name or r_name in p_name):
-        score += 50
-    else:
-        # token overlap for names
-        score += int(35 * jaccard(tokenize(p_name), tokenize(r_name)))
 
-    # Content overlap (description + readme)
+def name_similarity_score(project_name: str, repo_name: str) -> Tuple[int, str]:
+    """
+    Return (score 0-100, human-readable reason).
+
+    Strategies tried in priority order:
+    1. Flat match  – strip all separators and compare lowercased strings.
+       Handles: ATSMaster vs ATS-Master, ats_master, ats master → all 'atsmaster'.
+    2. Flat substring – one flat form contains the other.
+    3. CamelCase-token Jaccard – split both names into tokens first, then overlap.
+    4. normalize_text Jaccard fallback (original logic).
+    """
+    if not project_name or not repo_name:
+        return 0, "empty name"
+
+    pf = name_flat(project_name)
+    rf = name_flat(repo_name)
+
+    # --- Strategy 1: exact flat match ---
+    if pf and rf and pf == rf:
+        return 100, f"flat-exact ('{pf}')"
+
+    # --- Strategy 2: one flat form contains the other ---
+    if pf and rf and len(pf) >= 3 and len(rf) >= 3:
+        if pf in rf or rf in pf:
+            ratio = min(len(pf), len(rf)) / max(len(pf), len(rf), 1)
+            if ratio >= 0.75:
+                return 85, f"flat-contains (ratio {ratio:.2f})"
+            elif ratio >= 0.50:
+                return 65, f"flat-partial (ratio {ratio:.2f})"
+
+    # --- Strategy 3: CamelCase token Jaccard ---
+    pt = set(camel_split_tokens(project_name))
+    rt = set(camel_split_tokens(repo_name))
+    if pt and rt:
+        common = pt & rt
+        j = len(common) / max(1, len(pt | rt))
+        if j >= 0.80:
+            return 90, f"camel-tokens j={j:.2f} common={common}"
+        elif j >= 0.60:
+            return 70, f"camel-tokens j={j:.2f} common={common}"
+        elif j >= 0.40:
+            return 50, f"camel-tokens j={j:.2f}"
+        elif j >= 0.20:
+            return 30, f"camel-tokens j={j:.2f}"
+
+    # --- Strategy 4: original normalize_text fallback ---
+    pn = normalize_text(project_name)
+    rn = normalize_text(repo_name)
+    if pn and rn:
+        if pn == rn:
+            return 80, "norm-exact"
+        if pn in rn or rn in pn:
+            return 55, "norm-contains"
+        j2 = jaccard(tokenize(pn), tokenize(rn))
+        if j2 > 0:
+            return int(35 * j2), f"norm-tokens j={j2:.2f}"
+
+    return 0, "no-match"
+
+
+def tech_match_score(project_technologies: List[str], repo: Dict[str, Any], readme_text: str) -> Tuple[int, str]:
+    """
+    Compare the project's technology list against the repo's language, topics,
+    description, and README.  Returns (score 0-100, reason).
+    """
+    if not project_technologies:
+        return 0, "no tech listed"
+
+    # Build a searchable blob from everything the repo exposes
+    repo_lang = (repo.get("language") or "").lower()
+    repo_topics = " ".join(t.lower() for t in (repo.get("topics") or []))
+    repo_desc = normalize_text(repo.get("description") or "")
+    # Limit README to first 4 000 chars to keep things fast
+    repo_readme = normalize_text((readme_text or "")[:4000])
+    blob = f"{repo_lang} {repo_topics} {repo_desc} {repo_readme}"
+
+    hits = 0
+    matched = []
+    for tech in project_technologies:
+        t_norm = normalize_text(tech)
+        if t_norm and len(t_norm) >= 2 and t_norm in blob:
+            hits += 1
+            matched.append(tech)
+
+    total = max(len(project_technologies), 1)
+    ratio = hits / total
+    score = int(ratio * 100)
+    reason = f"{hits}/{total} matched ({', '.join(matched[:4])})" if matched else f"0/{total} matched"
+    return score, reason
+
+
+# ---------------------------
+# Main matching function
+# ---------------------------
+
+def compute_match_score(
+    project_name: str,
+    project_desc: str,
+    repo: Dict[str, Any],
+    readme_text: str,
+    project_technologies: Optional[List[str]] = None,
+) -> Tuple[int, Dict[str, Any]]:
+    """
+    Multi-signal match score (0-100) with per-component breakdown.
+
+    Weights
+    -------
+    Name similarity     40 %  – flat, camelCase, token Jaccard
+    Content overlap     30 %  – keyword hits in description + README
+    Tech match          20 %  – resume tech list vs repo lang/topics/README
+    Topic keyword bonus 10 %  – project name tokens found in repo topics
+    """
+    if project_technologies is None:
+        project_technologies = []
+
+    # ── 1. Name similarity (40 %) ────────────────────────────────────────────
+    name_raw, name_reason = name_similarity_score(project_name, repo.get("name", ""))
+    name_component = int(0.40 * name_raw)
+
+    # ── 2. Content overlap (30 %) ─────────────────────────────────────────────
     repo_blob = normalize_text(
-        f"{repo.get('description','')} {repo.get('topics',[])} {readme_text}"
+        f"{repo.get('description', '')} {repo.get('topics', [])} {readme_text}"
     )
     proj_blob = normalize_text(f"{project_name} {project_desc}")
+    # Only count tokens of length >= 4 to avoid noise words
+    proj_tokens = [t for t in tokenize(proj_blob) if len(t) >= 4]
+    content_hits = sum(1 for t in proj_tokens if t in repo_blob)
+    content_raw = min(100, content_hits * 6) if proj_tokens else 0
+    content_component = int(0.30 * content_raw)
 
-    proj_tokens = set(tokenize(proj_blob))
-    if proj_tokens:
-        hits = 0
-        # count hits of meaningful tokens (len>=4 reduces noise)
-        for t in proj_tokens:
-            if len(t) >= 4 and t in repo_blob:
-                hits += 1
-        score += min(35, hits * 4)
+    # ── 3. Tech match (20 %) ─────────────────────────────────────────────────
+    tech_raw, tech_reason = tech_match_score(project_technologies, repo, readme_text)
+    tech_component = int(0.20 * tech_raw)
 
-    return int(clamp(score, 0, 100))
+    # ── 4. Topic keyword bonus (10 %) ─────────────────────────────────────────
+    repo_topics_blob = " ".join(t.lower() for t in (repo.get("topics") or []))
+    proj_name_tokens = camel_split_tokens(project_name)
+    topic_hits = sum(1 for t in proj_name_tokens if t in repo_topics_blob)
+    topic_raw = min(100, topic_hits * 50)
+    topic_component = int(0.10 * topic_raw)
+
+    total = int(clamp(name_component + content_component + tech_component + topic_component, 0, 100))
+
+    breakdown = {
+        "name_score": name_raw,
+        "name_reason": name_reason,
+        "name_component": name_component,
+        "content_hits": content_hits,
+        "content_score": content_raw,
+        "content_component": content_component,
+        "tech_score": tech_raw,
+        "tech_reason": tech_reason,
+        "tech_component": tech_component,
+        "topic_score": topic_raw,
+        "topic_component": topic_component,
+        "total": total,
+    }
+
+    return total, breakdown
+
 
 def classify_presence(best_score: int) -> Tuple[str, float]:
-    if best_score >= 80:
-        return "FOUND", 0.90
-    if best_score >= 55:
-        return "MAYBE", 0.55
-    return "NOT_FOUND", 0.20
+    """
+    Thresholds lowered from (80/55) → (65/40) to reflect the improved scoring
+    which now uses 4 signals instead of 2 and normalises separators properly.
+    """
+    if best_score >= 65:
+        conf = round(min(0.99, 0.65 + (best_score - 65) * 0.012), 2)
+        return "FOUND", conf
+    if best_score >= 40:
+        conf = round(min(0.75, 0.40 + (best_score - 40) * 0.014), 2)
+        return "MAYBE", conf
+    conf = round(max(0.05, best_score * 0.008), 2)
+    return "NOT_FOUND", conf
 
 
 # ---------------------------
@@ -381,27 +537,33 @@ def verify_projects_agent(payload: Dict[str, Any]) -> Dict[str, Any]:
     for p in projects:
         pname = str(p.get("name", "")).strip()
         pdesc = str(p.get("description", "")).strip()
+        # Extract technologies list for this project (new signal)
+        ptechs = [str(t).strip() for t in p.get("technologies", []) if str(t).strip()]
 
         if not pname:
             continue
 
-        # 2) Rough match first (no README)
+        # 2) Rough match first (no README) — uses all 4 signals except README content
         rough_scores = []
         for r in repo_slim:
-            s = compute_match_score(pname, pdesc, r, readme_text="")
+            s, _ = compute_match_score(pname, pdesc, r, readme_text="", project_technologies=ptechs)
             rough_scores.append((s, r))
         rough_scores.sort(key=lambda x: x[0], reverse=True)
         top3 = rough_scores[:3]
 
-        # 3) Refine using README for best 1-2 candidates (faster)
+        # 3) Refine using README for the top 2 candidates
         refined = []
         for s, r in top3[:2]:
             readme = fetch_readme_text(username, r["name"])
-            s2 = compute_match_score(pname, pdesc, r, readme_text=readme)
-            refined.append((s2, r, readme))
+            s2, breakdown2 = compute_match_score(pname, pdesc, r, readme_text=readme, project_technologies=ptechs)
+            refined.append((s2, r, readme, breakdown2))
         refined.sort(key=lambda x: x[0], reverse=True)
 
-        best_score, best_repo, best_readme = (refined[0] if refined else (top3[0][0], top3[0][1], ""))
+        if refined:
+            best_score, best_repo, best_readme, best_breakdown = refined[0]
+        else:
+            best_score, best_repo, best_readme = top3[0][0], top3[0][1], ""
+            _, best_breakdown = compute_match_score(pname, pdesc, best_repo, readme_text="", project_technologies=ptechs)
 
         present, conf = classify_presence(best_score)
 
@@ -414,12 +576,13 @@ def verify_projects_agent(payload: Dict[str, Any]) -> Dict[str, Any]:
 
         matched_repo_obj = None
         quality_obj = None
+        match_breakdown_obj = None
 
         if present in ("FOUND", "MAYBE"):
             # Public-only policy: if repo is somehow private, treat as NOT_FOUND
             if PUBLIC_ONLY and best_repo.get("private", False):
                 present = "NOT_FOUND"
-                conf = 0.2
+                conf = 0.05
             else:
                 matched_repo_obj = {
                     "full_name": best_repo.get("full_name", ""),
@@ -430,12 +593,26 @@ def verify_projects_agent(payload: Dict[str, Any]) -> Dict[str, Any]:
                 langs = fetch_languages(username, best_repo["name"])
                 quality_obj = quality_score(best_repo, langs, best_readme)
 
+                # Build human-readable match breakdown for the UI
+                match_breakdown_obj = {
+                    "repository": best_repo.get("full_name", ""),
+                    "name_match_pct": best_breakdown.get("name_score", 0),
+                    "name_reason": best_breakdown.get("name_reason", ""),
+                    "content_match_pct": best_breakdown.get("content_score", 0),
+                    "content_hits": best_breakdown.get("content_hits", 0),
+                    "tech_match_pct": best_breakdown.get("tech_score", 0),
+                    "tech_reason": best_breakdown.get("tech_reason", ""),
+                    "topic_match_pct": best_breakdown.get("topic_score", 0),
+                    "overall_confidence_pct": best_score,
+                }
+
         results.append({
             "resume_project": {"name": pname, "description": short(pdesc, 260)},
             "present": present,
             "match_confidence": conf,
             "matched_repo": matched_repo_obj,
             "quality": quality_obj,
+            "match_breakdown": match_breakdown_obj,
             "top_candidates": [
                 {"full_name": r.get("full_name"), "html_url": r.get("html_url"), "score": s}
                 for s, r in top3
@@ -466,20 +643,33 @@ if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv()
     
-    # Example payload (replace with your real data)
+    # Test payload — mirrors real resume extraction output
     payload = {
         "github_username": "shivraj2805",
         "projects": [
             {
+                "name": "ATSMaster",
+                "description": "AI-powered resume optimization platform with ATS scoring, GitHub profile analysis, competitive programming evaluation, and Gemini AI integration.",
+                "technologies": ["React", "Node.js", "Python", "Flask", "Gemini", "MongoDB"]
+            },
+            {
                 "name": "Financial Advisor",
-                "description": "Built a financial management platform with Gemini AI integration, OCR processing, JWT auth, and real-time features."
+                "description": "Built a financial management platform with Google Gemini AI integration, OCR document processing, JWT auth, and real-time features.",
+                "technologies": ["React", "Node.js", "MongoDB", "Socket.io", "JWT", "Gemini"]
             },
             {
                 "name": "KrushiSetu",
-                "description": "AI agriculture platform with ML crop recommendations and a WhatsApp chatbot; REST APIs and real-time updates."
+                "description": "AI agriculture platform with ML crop recommendations and a WhatsApp chatbot; REST APIs and real-time updates.",
+                "technologies": ["Python", "TensorFlow", "WhatsApp API", "Flask"]
             },
         ]
     }
 
     out = verify_projects_agent(payload)
     print(json.dumps(out, indent=2, ensure_ascii=False))
+    print("\n=== SUMMARY ===")
+    for r in out["results"]:
+        mb = r.get("match_breakdown") or {}
+        print(f"  {r['resume_project']['name']}: {r['present']} (conf={r['match_confidence']}) "
+              f"name={mb.get('name_match_pct',0)}% reason={mb.get('name_reason','')}")
+

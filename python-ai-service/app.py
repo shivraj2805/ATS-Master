@@ -57,6 +57,7 @@ def health():
         'service': 'AI Service',
         'model': 'gemini-2.5-flash',
         'temperature': generation_config['temperature'],
+        'github_token_configured': bool(GITHUB_TOKEN),
         'capabilities': [
             'optimize-summary (5 varied styles)',
             'enhance-bullets (5 enhancement approaches)', 
@@ -68,6 +69,50 @@ def health():
             'batch-profile-analysis'
         ]
     })
+
+@app.route('/api/debug-github', methods=['GET'])
+def debug_github():
+    """
+    Diagnostic endpoint to test GitHub token validity without exposing the token.
+    Call GET /api/debug-github to verify your GITHUB_TOKEN is properly configured.
+    """
+    try:
+        # Test the token against the GitHub rate limit endpoint (safe, no user data required)
+        test_url = 'https://api.github.com/rate_limit'
+        r = requests.get(test_url, headers=GITHUB_HEADERS, timeout=10)
+        
+        result = {
+            'github_token_configured': bool(GITHUB_TOKEN),
+            'github_api_status': r.status_code,
+        }
+        
+        if r.status_code == 200:
+            data = r.json()
+            core = data.get('resources', {}).get('core', {})
+            result['rate_limit'] = {
+                'limit': core.get('limit'),
+                'remaining': core.get('remaining'),
+                'reset_at': core.get('reset'),
+            }
+            result['authenticated'] = core.get('limit', 60) > 60  # Authenticated users get 5000/hr
+            result['status'] = 'ok'
+        elif r.status_code == 401:
+            result['status'] = 'error'
+            result['error'] = 'GitHub token is invalid or expired. Update GITHUB_TOKEN in python-ai-service/.env'
+        elif r.status_code == 403:
+            result['status'] = 'error'
+            result['error'] = 'GitHub token is rate-limited or has insufficient permissions.'
+        else:
+            result['status'] = 'error'
+            result['error'] = f'Unexpected GitHub API response: {r.status_code}'
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'github_token_configured': bool(GITHUB_TOKEN),
+        }), 500
 
 @app.route('/api/ai/optimize-summary', methods=['POST'])
 def optimize_summary():
@@ -1323,11 +1368,26 @@ def analyze_github():
         # Fetch GitHub data
         profile_data, err = get_user(github_username)
         if err or not profile_data:
-            return jsonify({'error': f'GitHub user not found: {github_username}'}), 404
+            # Distinguish between "not found" and other API errors (bad token, rate limit, etc.)
+            if err and ('404' in str(err) or 'Not Found' in str(err)):
+                error_msg = f'GitHub user "{github_username}" not found. Check that the username is correct.'
+                return jsonify({'success': False, 'error': error_msg}), 404
+            elif err and ('401' in str(err) or 'Bad credentials' in str(err)):
+                error_msg = f'GitHub API authentication failed. Check that GITHUB_TOKEN in python-ai-service/.env is valid.'
+                print(f'❌ GitHub auth error: {err}')
+                return jsonify({'success': False, 'error': error_msg}), 500
+            elif err and ('403' in str(err) or 'rate limit' in str(err).lower()):
+                error_msg = f'GitHub API rate limit exceeded. Try again later or add a valid GITHUB_TOKEN.'
+                print(f'❌ GitHub rate limit: {err}')
+                return jsonify({'success': False, 'error': error_msg}), 429
+            else:
+                error_msg = f'Failed to fetch GitHub profile for "{github_username}": {err or "Unknown error"}'
+                print(f'❌ GitHub fetch error: {err}')
+                return jsonify({'success': False, 'error': error_msg}), 500
         
         repos, err = list_all_repos(github_username)
         if err:
-            return jsonify({'error': f'Failed to fetch repositories: {err}'}), 500
+            return jsonify({'success': False, 'error': f'Failed to fetch repositories: {err}'}), 500
         
         # Build comprehensive report with resume context
         report = build_github_report(github_username, profile_data, repos, keywords, resume_text)
