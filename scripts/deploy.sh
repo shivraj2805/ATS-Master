@@ -5,45 +5,50 @@
 # EC2 fetches this exact file from GitHub at the pushed commit SHA,
 # so it always runs the script that matches the deployed code.
 #
-# Environment variables injected by the SSM command in deploy.yml:
-#   IMAGE_TAG        — Git SHA (e.g. abc1234...)
-#   AWS_REGION       — e.g. ap-south-1
-#   ECR_REGISTRY     — e.g. 082287604856.dkr.ecr.ap-south-1.amazonaws.com
-#   ECR_REPO_SERVER  — ats-master-server
-#   ECR_REPO_CLIENT  — ats-master-client
-#   ECR_REPO_PYTHON  — ats-master-python-ai
-#   SECRET_NAME      — atsmaster/production
-#   APP_DIR          — /opt/ats-master
+# Required environment variables:
+#   IMAGE_TAG, AWS_REGION, ECR_REGISTRY
+#   ECR_REPO_SERVER, ECR_REPO_CLIENT, ECR_REPO_PYTHON
+#   SECRET_NAME
+#
+# Optional:
+#   APP_DIR (defaults to /opt/ats-master)
 # =============================================================================
 
 set -euo pipefail
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
-log "🚀 Starting ATS Master deployment | Tag: ${IMAGE_TAG}"
+# 1. Validate required variables
+: "${IMAGE_TAG:?IMAGE_TAG is required}"
+: "${AWS_REGION:?AWS_REGION is required}"
+: "${ECR_REGISTRY:?ECR_REGISTRY is required}"
+: "${ECR_REPO_SERVER:?ECR_REPO_SERVER is required}"
+: "${ECR_REPO_CLIENT:?ECR_REPO_CLIENT is required}"
+: "${ECR_REPO_PYTHON:?ECR_REPO_PYTHON is required}"
+: "${SECRET_NAME:?SECRET_NAME is required}"
 
 APP_DIR="${APP_DIR:-/opt/ats-master}"
 ENV_FILE="${APP_DIR}/.env.production"
 COMPOSE_FILE="${APP_DIR}/docker-compose.prod.yml"
-TMP_SECRET="/tmp/.ats_secret_$$.json"   # $$ = PID, unique per run
+TMP_SECRET="$(mktemp /tmp/ats-secret.XXXXXX)"
 
-# ─── 1. Ensure application directory exists ──────────────────────────────────
-log "📁 Preparing application directory: ${APP_DIR}"
+cleanup() {
+    rm -f "${TMP_SECRET}"
+}
+trap cleanup EXIT
+
+# 2. Prepare application directory
+log "Preparing application directory: ${APP_DIR}"
 mkdir -p "${APP_DIR}"
 
-# ─── 2. Authenticate Docker with ECR using the EC2 instance role ─────────────
-log "🔐 Logging into Amazon ECR..."
-aws ecr get-login-password --region "${AWS_REGION}" | \
-  docker login --username AWS --password-stdin "${ECR_REGISTRY}"
+# 3. Authenticate Docker with ECR
+log "Logging into Amazon ECR..."
+aws ecr get-login-password --region "${AWS_REGION}" |
+    docker login --username AWS --password-stdin "${ECR_REGISTRY}"
 
-# ─── 3. Fetch secrets and write them to a protected env file ─────────────────
-# The env file is root-owned, mode 600. Docker Compose reads it via env_file:.
-# Secret values never appear in shell arguments, process listings, or logs.
-log "🔑 Fetching secrets from AWS Secrets Manager (${SECRET_NAME})..."
+# 4. Fetch production secrets
+log "Fetching secrets from AWS Secrets Manager..."
 
-# Fetch into a temp file with tight permissions, then parse with Python.
-# Using a file instead of a shell variable avoids the secret appearing in
-# /proc/<pid>/environ or command-line process listings.
 aws secretsmanager get-secret-value \
   --secret-id "${SECRET_NAME}" \
   --region "${AWS_REGION}" \
@@ -58,7 +63,7 @@ import json, os, sys
 tmp = os.environ['TMP_SECRET']
 env_file = os.environ['ENV_FILE']
 
-with open(tmp, 'r') as f:
+with open(tmp, "r", encoding="utf-8") as f:
     data = json.load(f)
 
 required_keys = ['MONGODB_URI', 'JWT_SECRET', 'GOOGLE_API_KEY']
@@ -71,13 +76,17 @@ if missing:
     sys.exit(1)
 
 lines = []
-for key in all_keys:
-    val = data.get(key, '')
-    if val:
-        lines.append(f'{key}={val}')
+for key in required_keys + optional_keys:
+    value = data.get(key, "")
+    if value:
+        value = str(value)
+        if "\n" in value or "\r" in value:
+            print(f"ERROR: Invalid newline in {key}", file=sys.stderr)
+            sys.exit(1)
+        lines.append(f"{key}={value}")
 
-with open(env_file, 'w') as f:
-    f.write('\n'.join(lines) + '\n')
+with open(env_file, "w", encoding="utf-8") as f:
+    f.write("\n".join(lines) + "\n")
 
 os.chmod(env_file, 0o600)
 print(f'Secrets written to {env_file} (mode 600, {len(lines)} keys)')
@@ -87,12 +96,17 @@ PYEOF
 rm -f "${TMP_SECRET}"
 log "✅ Secrets loaded into ${ENV_FILE}"
 
-# ─── 4. Pull the three images from ECR ──────────────────────────────────────
-log "📦 Pulling Docker images (tag: ${IMAGE_TAG})..."
+# 5. Pull all deployment images
+log "Pulling Docker images (tag: ${IMAGE_TAG})..."
 docker pull "${ECR_REGISTRY}/${ECR_REPO_PYTHON}:${IMAGE_TAG}"
 docker pull "${ECR_REGISTRY}/${ECR_REPO_SERVER}:${IMAGE_TAG}"
 docker pull "${ECR_REGISTRY}/${ECR_REPO_CLIENT}:${IMAGE_TAG}"
-log "✅ All images pulled"
+log "All images pulled."
+
+# 6. Generate production Compose configuration
+# Secret values are provided via env_file, never embedded in YAML.
+# Only the frontend port is published to the host.
+log "Writing ${COMPOSE_FILE}..."
 
 # ─── 5. Write production docker-compose.prod.yml ────────────────────────────
 # - Secrets are supplied via env_file (not hardcoded in YAML).
@@ -159,7 +173,8 @@ services:
       server:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
+      # Nginx serves the frontend at /; /health is not the frontend route.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
       interval: 30s
       timeout: 5s
       start_period: 15s
@@ -174,10 +189,13 @@ COMPOSE
 
 log "✅ Compose file written to ${COMPOSE_FILE}"
 
-# ─── 6. Start / update containers ────────────────────────────────────────────
-log "🔄 Bringing containers up..."
+# 7. Start or update containers
+log "Starting/updating containers..."
 docker compose -f "${COMPOSE_FILE}" up -d --remove-orphans
-log "✅ Containers started (waiting for health checks...)"
+log "Containers started."
+
+# 8. Wait for all three services to become healthy
+log "Waiting for all 3 services to become healthy (up to 3 minutes)..."
 
 # ─── 7. Wait for all containers to report healthy ────────────────────────────
 log "⏳ Waiting for all 3 services to become healthy (up to 3 minutes)..."
@@ -190,33 +208,95 @@ while [ "${ELAPSED}" -lt "${MAX_WAIT}" ]; do
   sleep "${INTERVAL}"
   ELAPSED=$((ELAPSED + INTERVAL))
 
-  # Count containers with "(healthy)" in their status line
-  HEALTHY=$(docker compose -f "${COMPOSE_FILE}" ps 2>/dev/null | grep -c "(healthy)" || true)
-  TOTAL=$(docker compose -f "${COMPOSE_FILE}" ps -q 2>/dev/null | wc -l | tr -d ' ')
+    # Compose versions may emit either a JSON array or one JSON object per line.
+    HEALTHY="$(
+raw = sys.stdin.read().strip()
+if not raw:
+    print(0)
+    raise SystemExit(0)
+
+try:
+    parsed = json.loads(raw)
+    services = parsed if isinstance(parsed, list) else [parsed]
+except json.JSONDecodeError:
+    services = []
+    for line in raw.splitlines():
+        try:
+            item = json.loads(line)
+            if isinstance(item, list):
+                services.extend(item)
+            else:
+                services.append(item)
+        except json.JSONDecodeError:
+            pass
+
+healthy = sum(
+    1 for service in services
+    if isinstance(service, dict)
+    and str(service.get("Health", "")).lower() == "healthy"
+)
+print(healthy)
+'
+    )"
 
   log "   Healthy: ${HEALTHY}/${TOTAL} (${ELAPSED}s elapsed)"
 
-  if [ "${HEALTHY}" -eq 3 ]; then
-    ALL_HEALTHY=true
-    log "✅ All 3 services are healthy!"
-    break
-  fi
+    if [ "${HEALTHY}" -eq 3 ]; then
+        ALL_HEALTHY=true
+        log "All 3 services are healthy."
+        break
+    fi
+
+    # Stop early if a container has exited instead of waiting the full period.
+    if docker compose -f "${COMPOSE_FILE}" ps --all --format json |
+        python3 -c '
+import json
+import sys
+
+raw = sys.stdin.read().strip()
+try:
+    parsed = json.loads(raw)
+    services = parsed if isinstance(parsed, list) else [parsed]
+except json.JSONDecodeError:
+    services = []
+    for line in raw.splitlines():
+        try:
+            item = json.loads(line)
+            services.extend(item if isinstance(item, list) else [item])
+        except json.JSONDecodeError:
+            pass
+
+bad = [
+    s for s in services
+    if isinstance(s, dict)
+    and str(s.get("State", "")).lower() in ("exited", "dead")
+]
+sys.exit(0 if bad else 1)
+'; then
+        log "ERROR: One or more containers exited."
+        break
+    fi
 done
 
-if [ "${ALL_HEALTHY}" = "false" ]; then
-  log "⚠️  Not all services are healthy after ${MAX_WAIT}s. Check logs with:"
-  log "    docker logs atsmaster-server --tail 50"
-  log "    docker logs atsmaster-python-ai --tail 50"
-  # Show current state but don't exit 1 — containers are running, may still converge
-  docker compose -f "${COMPOSE_FILE}" ps
+if [ "${ALL_HEALTHY}" != "true" ]; then
+    log "ERROR: Not all services became healthy."
+    log "Recent server logs:"
+    docker logs atsmaster-server --tail 50 || true
+    log "Recent Python AI logs:"
+    docker logs atsmaster-python-ai --tail 50 || true
+    log "Recent client logs:"
+    docker logs atsmaster-client --tail 50 || true
+    log "Container status:"
+    docker compose -f "${COMPOSE_FILE}" ps --all
+    exit 1
 fi
 
-# ─── 8. Remove dangling images to reclaim disk space ─────────────────────────
-log "🧹 Pruning dangling images..."
+# 9. Remove dangling images
+log "Removing dangling images..."
 docker image prune -f
 
-# ─── 9. Final status ─────────────────────────────────────────────────────────
-log "📊 Container status:"
+# 10. Final status
+log "Final container status:"
 docker compose -f "${COMPOSE_FILE}" ps
 
 log "🎉 Deployment complete! Tag: ${IMAGE_TAG}"
