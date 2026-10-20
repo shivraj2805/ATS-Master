@@ -1,14 +1,14 @@
 name: Deploy ATS Master to ECR and EC2
 
-"on":
+on:
   push:
     branches:
       - master
   workflow_dispatch:
 
-# Non-sensitive configuration is stored as GitHub Actions Variables (not Secrets).
-# Go to: Repository â†’ Settings â†’ Secrets and variables â†’ Actions â†’ Variables tab
+# Non-sensitive configuration is stored in GitHub Actions Variables.
 # Required variables: AWS_ACCOUNT_ID, AWS_REGION, EC2_INSTANCE_ID
+
 env:
   AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
   AWS_REGION: ${{ vars.AWS_REGION }}
@@ -20,17 +20,13 @@ env:
   APP_DIR: /opt/ats-master
 
 jobs:
-  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   # JOB 1: Build all three Docker images and push them to ECR
-  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   build-and-push:
     name: Build and Push Docker Images
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.meta.outputs.tag }}
 
-    # id-token: write is required for OIDC â€” GitHub generates a token that AWS
-    # validates to grant temporary credentials. No static AWS keys are stored.
     permissions:
       id-token: write
       contents: read
@@ -46,56 +42,46 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
-        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Set image tag to Git commit SHA
         id: meta
-        run: |
-          echo "tag=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+        run: echo "tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
-      # â”€â”€ Node.js / Express backend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      # Node.js / Express backend
       - name: Build and push Server image
         uses: docker/build-push-action@v5
         with:
           context: ./server
           file: ./server/Dockerfile
           push: true
-          tags: |
-            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_SERVER }}:${{ steps.meta.outputs.tag }}
-            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_SERVER }}:latest
+          tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_SERVER }}:${{ steps.meta.outputs.tag }}
           cache-from: type=registry,ref=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_SERVER }}:latest
           cache-to: type=inline
 
-      # â”€â”€ React / Vite frontend served by Nginx â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      # React / Vite frontend served by Nginx
       - name: Build and push Client image
         uses: docker/build-push-action@v5
         with:
           context: ./client
           file: ./client/Dockerfile
           push: true
-          tags: |
-            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_CLIENT }}:${{ steps.meta.outputs.tag }}
-            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_CLIENT }}:latest
+          tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_CLIENT }}:${{ steps.meta.outputs.tag }}
           cache-from: type=registry,ref=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_CLIENT }}:latest
           cache-to: type=inline
 
-      # â”€â”€ Python / Flask AI service â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      # Python / Flask AI service
       - name: Build and push Python AI Service image
         uses: docker/build-push-action@v5
         with:
           context: ./python-ai-service
           file: ./python-ai-service/Dockerfile
           push: true
-          tags: |
-            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_PYTHON }}:${{ steps.meta.outputs.tag }}
-            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_PYTHON }}:latest
+          tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_PYTHON }}:${{ steps.meta.outputs.tag }}
           cache-from: type=registry,ref=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_PYTHON }}:latest
           cache-to: type=inline
 
-  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  # JOB 2: Deploy to EC2 via SSM Run Command (no SSH, no S3)
-  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # JOB 2: Deploy to EC2 via SSM Run Command
   deploy:
     name: Deploy to EC2
     runs-on: ubuntu-latest
@@ -115,29 +101,25 @@ jobs:
 
       - name: Send deployment command to EC2 via SSM
         id: ssm
-        # Strategy: EC2 fetches deploy.sh from GitHub at the exact commit SHA.
-        # This guarantees the script on disk matches the code being deployed.
-        # No S3 bucket is required.
-        #
-        # The five shell commands are passed as a JSON array to avoid quoting
-        # conflicts between the outer bash shell and the SSM document parser.
+        shell: bash
         run: |
+          set -euo pipefail
+
           IMAGE_TAG="${{ needs.build-and-push.outputs.image_tag }}"
           INSTANCE_ID="${{ vars.EC2_INSTANCE_ID }}"
 
-          # Build the JSON parameters document using a Python heredoc so that
-          # variable interpolation is clean and shell-quoting is unambiguous.
-          PARAMS=$(python3 - <<PYEOF
-          import json, sys
+          PARAMS=$(python3 - <<'PYEOF'
+          import json
+          import os
 
-          image_tag   = "$IMAGE_TAG"
-          ecr_registry = "${{ env.ECR_REGISTRY }}"
-          server_repo  = "${{ env.ECR_REPO_SERVER }}"
-          client_repo  = "${{ env.ECR_REPO_CLIENT }}"
-          python_repo  = "${{ env.ECR_REPO_PYTHON }}"
-          secret_name  = "${{ env.SECRET_NAME }}"
-          aws_region   = "${{ env.AWS_REGION }}"
-          app_dir      = "${{ env.APP_DIR }}"
+          image_tag = os.environ["IMAGE_TAG"]
+          ecr_registry = os.environ["ECR_REGISTRY"]
+          server_repo = os.environ["ECR_REPO_SERVER"]
+          client_repo = os.environ["ECR_REPO_CLIENT"]
+          python_repo = os.environ["ECR_REPO_PYTHON"]
+          secret_name = os.environ["SECRET_NAME"]
+          aws_region = os.environ["AWS_REGION"]
+          app_dir = os.environ["APP_DIR"]
 
           env_prefix = (
               f"IMAGE_TAG={image_tag} "
@@ -157,9 +139,17 @@ jobs:
               f"chmod 750 {app_dir}/scripts/deploy.sh",
               f"{env_prefix} bash {app_dir}/scripts/deploy.sh",
           ]
-          print(json.dumps({"commands": commands, "executionTimeout": ["600"]}))
+
+          print(json.dumps({
+              "commands": commands,
+              "executionTimeout": ["600"]
+          }))
           PYEOF
           )
+
+          export IMAGE_TAG
+          export INSTANCE_ID
+          export PARAMS
 
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "${INSTANCE_ID}" \
@@ -172,16 +162,18 @@ jobs:
 
           echo "SSM Command ID: ${COMMAND_ID}"
           echo "command_id=${COMMAND_ID}" >> "$GITHUB_OUTPUT"
+        env:
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
 
-      - name: Wait for deployment to complete (polls every 15s, up to 10min)
+      - name: Wait for deployment to complete
+        shell: bash
         run: |
+          set -euo pipefail
+
           INSTANCE_ID="${{ vars.EC2_INSTANCE_ID }}"
           COMMAND_ID="${{ steps.ssm.outputs.command_id }}"
 
-          MAX=40     # 40 Ã— 15s = 600s = 10 minutes
-          COUNT=0
-
-          while [ "${COUNT}" -lt "${MAX}" ]; do
+          for COUNT in $(seq 1 40); do
             STATUS=$(aws ssm get-command-invocation \
               --command-id "${COMMAND_ID}" \
               --instance-id "${INSTANCE_ID}" \
@@ -192,12 +184,11 @@ jobs:
 
             case "${STATUS}" in
               Success)
-                echo "âœ… Deployment succeeded."
+                echo "Deployment succeeded."
                 exit 0
                 ;;
               Failed|Cancelled|TimedOut|DeliveryTimedOut|ExecutionTimedOut)
-                echo "âŒ Deployment failed with status: ${STATUS}"
-                echo "--- stderr from EC2 ---"
+                echo "Deployment failed with status: ${STATUS}"
                 aws ssm get-command-invocation \
                   --command-id "${COMMAND_ID}" \
                   --instance-id "${INSTANCE_ID}" \
@@ -207,18 +198,26 @@ jobs:
                 ;;
             esac
 
-            COUNT=$(( COUNT + 1 ))
             sleep 15
           done
 
-          echo "âŒ Timed out after 10 minutes waiting for deployment."
+          echo "Timed out waiting for deployment."
           exit 1
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
 
       - name: Show EC2 deployment output
         if: always()
+        shell: bash
         run: |
           INSTANCE_ID="${{ vars.EC2_INSTANCE_ID }}"
           COMMAND_ID="${{ steps.ssm.outputs.command_id }}"
+
+          if [ -z "${COMMAND_ID}" ]; then
+            echo "No SSM command ID was recorded."
+            exit 0
+          fi
+
           echo "=== stdout from EC2 deploy.sh ==="
           aws ssm get-command-invocation \
             --command-id "${COMMAND_ID}" \
@@ -226,3 +225,9 @@ jobs:
             --query "StandardOutputContent" \
             --output text 2>/dev/null || echo "(output not available)"
 
+          echo "=== stderr from EC2 deploy.sh ==="
+          aws ssm get-command-invocation \
+            --command-id "${COMMAND_ID}" \
+            --instance-id "${INSTANCE_ID}" \
+            --query "StandardErrorContent" \
+            --output text 2>/dev/null || echo "(output not available)"
