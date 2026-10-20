@@ -1,51 +1,61 @@
-name: Deploy ATS Master to AWS ECR → EC2
+name: Deploy ATS Master to ECR and EC2
 
-on:
+"on":
   push:
     branches:
-      - main
+      - master
   workflow_dispatch:
 
+# Non-sensitive configuration is stored as GitHub Actions Variables (not Secrets).
+# Go to: Repository â†’ Settings â†’ Secrets and variables â†’ Actions â†’ Variables tab
+# Required variables: AWS_ACCOUNT_ID, AWS_REGION, EC2_INSTANCE_ID
 env:
-  AWS_REGION: ap-south-1
-  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-1.amazonaws.com
-  ECR_REPO_SERVER: atsmaster-server
-  ECR_REPO_CLIENT: atsmaster-client
-  ECR_REPO_PYTHON: atsmaster-python-ai
+  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ECR_REGISTRY: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com
+  ECR_REPO_SERVER: ats-master-server
+  ECR_REPO_CLIENT: ats-master-client
+  ECR_REPO_PYTHON: ats-master-python-ai
+  SECRET_NAME: atsmaster/production
+  APP_DIR: /opt/ats-master
 
 jobs:
-  # ─────────────────────────────────────────────
-  # JOB 1: Build & push all images to ECR
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # JOB 1: Build all three Docker images and push them to ECR
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   build-and-push:
-    name: Build & Push Docker Images
+    name: Build and Push Docker Images
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.meta.outputs.tag }}
+
+    # id-token: write is required for OIDC â€” GitHub generates a token that AWS
+    # validates to grant temporary credentials. No static AWS keys are stored.
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (OIDC)
+      - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsDeployRole
+          role-to-assume: arn:aws:iam::082287604856:role/ATS-Master-GitHubActions-Deploy
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Generate image tag
+      - name: Set image tag to Git commit SHA
         id: meta
         run: |
-          TAG="${{ github.sha }}"
-          echo "tag=${TAG}" >> $GITHUB_OUTPUT
-          echo "Image tag: ${TAG}"
+          echo "tag=${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
-      # ── Build & push Server (Node.js) ──
-      - name: Build & push Server image
+      # â”€â”€ Node.js / Express backend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      - name: Build and push Server image
         uses: docker/build-push-action@v5
         with:
           context: ./server
@@ -57,8 +67,8 @@ jobs:
           cache-from: type=registry,ref=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_SERVER }}:latest
           cache-to: type=inline
 
-      # ── Build & push Client (React/Nginx) ──
-      - name: Build & push Client image
+      # â”€â”€ React / Vite frontend served by Nginx â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      - name: Build and push Client image
         uses: docker/build-push-action@v5
         with:
           context: ./client
@@ -70,8 +80,8 @@ jobs:
           cache-from: type=registry,ref=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_CLIENT }}:latest
           cache-to: type=inline
 
-      # ── Build & push Python AI Service ──
-      - name: Build & push Python AI Service image
+      # â”€â”€ Python / Flask AI service â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      - name: Build and push Python AI Service image
         uses: docker/build-push-action@v5
         with:
           context: ./python-ai-service
@@ -83,67 +93,136 @@ jobs:
           cache-from: type=registry,ref=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_PYTHON }}:latest
           cache-to: type=inline
 
-  # ─────────────────────────────────────────────
-  # JOB 2: Deploy to EC2 via SSM
-  # ─────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # JOB 2: Deploy to EC2 via SSM Run Command (no SSH, no S3)
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   deploy:
     name: Deploy to EC2
     runs-on: ubuntu-latest
     needs: build-and-push
     environment: production
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    permissions:
+      id-token: write
+      contents: read
 
-      - name: Configure AWS credentials (OIDC)
+    steps:
+      - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsDeployRole
+          role-to-assume: arn:aws:iam::082287604856:role/ATS-Master-GitHubActions-Deploy
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Copy deploy script to EC2 via S3
+      - name: Send deployment command to EC2 via SSM
+        id: ssm
+        # Strategy: EC2 fetches deploy.sh from GitHub at the exact commit SHA.
+        # This guarantees the script on disk matches the code being deployed.
+        # No S3 bucket is required.
+        #
+        # The five shell commands are passed as a JSON array to avoid quoting
+        # conflicts between the outer bash shell and the SSM document parser.
         run: |
-          aws s3 cp ./scripts/deploy.sh s3://${{ secrets.DEPLOY_BUCKET }}/deploy.sh
+          IMAGE_TAG="${{ needs.build-and-push.outputs.image_tag }}"
+          INSTANCE_ID="${{ vars.EC2_INSTANCE_ID }}"
 
-      - name: Deploy via SSM Run Command
-        run: |
+          # Build the JSON parameters document using a Python heredoc so that
+          # variable interpolation is clean and shell-quoting is unambiguous.
+          PARAMS=$(python3 - <<PYEOF
+          import json, sys
+
+          image_tag   = "$IMAGE_TAG"
+          ecr_registry = "${{ env.ECR_REGISTRY }}"
+          server_repo  = "${{ env.ECR_REPO_SERVER }}"
+          client_repo  = "${{ env.ECR_REPO_CLIENT }}"
+          python_repo  = "${{ env.ECR_REPO_PYTHON }}"
+          secret_name  = "${{ env.SECRET_NAME }}"
+          aws_region   = "${{ env.AWS_REGION }}"
+          app_dir      = "${{ env.APP_DIR }}"
+
+          env_prefix = (
+              f"IMAGE_TAG={image_tag} "
+              f"AWS_REGION={aws_region} "
+              f"ECR_REGISTRY={ecr_registry} "
+              f"ECR_REPO_SERVER={server_repo} "
+              f"ECR_REPO_CLIENT={client_repo} "
+              f"ECR_REPO_PYTHON={python_repo} "
+              f"SECRET_NAME={secret_name} "
+              f"APP_DIR={app_dir}"
+          )
+
+          commands = [
+              "set -euo pipefail",
+              f"mkdir -p {app_dir}/scripts",
+              f"curl -fsSL https://raw.githubusercontent.com/shivraj2805/ATS-Master/{image_tag}/scripts/deploy.sh -o {app_dir}/scripts/deploy.sh",
+              f"chmod 750 {app_dir}/scripts/deploy.sh",
+              f"{env_prefix} bash {app_dir}/scripts/deploy.sh",
+          ]
+          print(json.dumps({"commands": commands, "executionTimeout": ["600"]}))
+          PYEOF
+          )
+
           COMMAND_ID=$(aws ssm send-command \
-            --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+            --instance-ids "${INSTANCE_ID}" \
             --document-name "AWS-RunShellScript" \
-            --parameters '{
-              "commands": [
-                "aws s3 cp s3://${{ secrets.DEPLOY_BUCKET }}/deploy.sh /home/ec2-user/deploy.sh",
-                "chmod +x /home/ec2-user/deploy.sh",
-                "IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }} AWS_REGION=${{ env.AWS_REGION }} ECR_REGISTRY=${{ env.ECR_REGISTRY }} ECR_REPO_SERVER=${{ env.ECR_REPO_SERVER }} ECR_REPO_CLIENT=${{ env.ECR_REPO_CLIENT }} ECR_REPO_PYTHON=${{ env.ECR_REPO_PYTHON }} SECRET_NAME=${{ secrets.SECRET_NAME }} bash /home/ec2-user/deploy.sh"
-              ],
-              "executionTimeout": ["600"]
-            }' \
-            --timeout-seconds 600 \
+            --comment "Deploy ATS Master ${IMAGE_TAG}" \
+            --parameters "${PARAMS}" \
+            --timeout-seconds 30 \
             --query "Command.CommandId" \
             --output text)
 
-          echo "SSM Command ID: $COMMAND_ID"
+          echo "SSM Command ID: ${COMMAND_ID}"
+          echo "command_id=${COMMAND_ID}" >> "$GITHUB_OUTPUT"
 
-          # Wait for command to finish
-          aws ssm wait command-executed \
-            --command-id "$COMMAND_ID" \
-            --instance-id "${{ secrets.EC2_INSTANCE_ID }}"
+      - name: Wait for deployment to complete (polls every 15s, up to 10min)
+        run: |
+          INSTANCE_ID="${{ vars.EC2_INSTANCE_ID }}"
+          COMMAND_ID="${{ steps.ssm.outputs.command_id }}"
 
-          # Fetch and print output
+          MAX=40     # 40 Ã— 15s = 600s = 10 minutes
+          COUNT=0
+
+          while [ "${COUNT}" -lt "${MAX}" ]; do
+            STATUS=$(aws ssm get-command-invocation \
+              --command-id "${COMMAND_ID}" \
+              --instance-id "${INSTANCE_ID}" \
+              --query "Status" \
+              --output text 2>/dev/null || echo "Pending")
+
+            echo "[$(( COUNT * 15 ))s] Status: ${STATUS}"
+
+            case "${STATUS}" in
+              Success)
+                echo "âœ… Deployment succeeded."
+                exit 0
+                ;;
+              Failed|Cancelled|TimedOut|DeliveryTimedOut|ExecutionTimedOut)
+                echo "âŒ Deployment failed with status: ${STATUS}"
+                echo "--- stderr from EC2 ---"
+                aws ssm get-command-invocation \
+                  --command-id "${COMMAND_ID}" \
+                  --instance-id "${INSTANCE_ID}" \
+                  --query "StandardErrorContent" \
+                  --output text 2>/dev/null || true
+                exit 1
+                ;;
+            esac
+
+            COUNT=$(( COUNT + 1 ))
+            sleep 15
+          done
+
+          echo "âŒ Timed out after 10 minutes waiting for deployment."
+          exit 1
+
+      - name: Show EC2 deployment output
+        if: always()
+        run: |
+          INSTANCE_ID="${{ vars.EC2_INSTANCE_ID }}"
+          COMMAND_ID="${{ steps.ssm.outputs.command_id }}"
+          echo "=== stdout from EC2 deploy.sh ==="
           aws ssm get-command-invocation \
-            --command-id "$COMMAND_ID" \
-            --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
-            --query "{Status: Status, Output: StandardOutputContent, Error: StandardErrorContent}" \
-            --output table
+            --command-id "${COMMAND_ID}" \
+            --instance-id "${INSTANCE_ID}" \
+            --query "StandardOutputContent" \
+            --output text 2>/dev/null || echo "(output not available)"
 
-          # Fail if command didn't succeed
-          STATUS=$(aws ssm get-command-invocation \
-            --command-id "$COMMAND_ID" \
-            --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
-            --query "Status" --output text)
-          if [ "$STATUS" != "Success" ]; then
-            echo "❌ SSM command failed with status: $STATUS"
-            exit 1
-          fi
-          echo "✅ Deployment successful!"

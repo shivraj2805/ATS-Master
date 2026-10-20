@@ -2,7 +2,7 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "ECRPull",
+      "Sid": "ECRGetToken",
       "Effect": "Allow",
       "Action": [
         "ecr:GetAuthorizationToken"
@@ -10,7 +10,7 @@
       "Resource": "*"
     },
     {
-      "Sid": "ECRRepositoryPull",
+      "Sid": "ECRPull",
       "Effect": "Allow",
       "Action": [
         "ecr:BatchCheckLayerAvailability",
@@ -21,9 +21,9 @@
         "ecr:DescribeImages"
       ],
       "Resource": [
-        "arn:aws:ecr:ap-south-1:ACCOUNT_ID:repository/atsmaster-server",
-        "arn:aws:ecr:ap-south-1:ACCOUNT_ID:repository/atsmaster-client",
-        "arn:aws:ecr:ap-south-1:ACCOUNT_ID:repository/atsmaster-python-ai"
+        "arn:aws:ecr:ap-south-1:082287604856:repository/ats-master-server",
+        "arn:aws:ecr:ap-south-1:082287604856:repository/ats-master-client",
+        "arn:aws:ecr:ap-south-1:082287604856:repository/ats-master-python-ai"
       ]
     },
     {
@@ -33,18 +33,10 @@
         "secretsmanager:GetSecretValue",
         "secretsmanager:DescribeSecret"
       ],
-      "Resource": "arn:aws:secretsmanager:ap-south-1:ACCOUNT_ID:secret:atsmaster/production-*"
+      "Resource": "arn:aws:secretsmanager:ap-south-1:082287604856:secret:atsmaster/production-*"
     },
     {
-      "Sid": "S3DeployScriptRead",
-      "Effect": "Allow",
-      "Action": [
-        "s3:GetObject"
-      ],
-      "Resource": "arn:aws:s3:::YOUR_DEPLOY_BUCKET/*"
-    },
-    {
-      "Sid": "SSMCoreAccess",
+      "Sid": "SSMAgentCore",
       "Effect": "Allow",
       "Action": [
         "ssm:UpdateInstanceInformation",

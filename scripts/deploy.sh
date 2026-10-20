@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
 # =============================================================================
 # deploy.sh — ATS Master EC2 Deployment Script
-# Called by GitHub Actions via AWS SSM Run Command.
+# Executed on EC2 by GitHub Actions via AWS SSM Run Command.
+# EC2 fetches this exact file from GitHub at the pushed commit SHA,
+# so it always runs the script that matches the deployed code.
 #
-# Required environment variables (injected by SSM):
-#   IMAGE_TAG        - Git SHA used as Docker image tag
-#   AWS_REGION       - e.g. ap-south-1
-#   ECR_REGISTRY     - e.g. 123456789.dkr.ecr.ap-south-1.amazonaws.com
-#   ECR_REPO_SERVER  - ECR repository name for server
-#   ECR_REPO_CLIENT  - ECR repository name for client
-#   ECR_REPO_PYTHON  - ECR repository name for python-ai-service
-#   SECRET_NAME      - AWS Secrets Manager secret name
+# Environment variables injected by the SSM command in deploy.yml:
+#   IMAGE_TAG        — Git SHA (e.g. abc1234...)
+#   AWS_REGION       — e.g. ap-south-1
+#   ECR_REGISTRY     — e.g. 082287604856.dkr.ecr.ap-south-1.amazonaws.com
+#   ECR_REPO_SERVER  — ats-master-server
+#   ECR_REPO_CLIENT  — ats-master-client
+#   ECR_REPO_PYTHON  — ats-master-python-ai
+#   SECRET_NAME      — atsmaster/production
+#   APP_DIR          — /opt/ats-master
 # =============================================================================
 
 set -euo pipefail
@@ -19,51 +22,99 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
 log "🚀 Starting ATS Master deployment | Tag: ${IMAGE_TAG}"
 
-# ─── 1. Authenticate Docker with ECR ────────────────────────────────────────
-log "🔐 Logging into ECR..."
+APP_DIR="${APP_DIR:-/opt/ats-master}"
+ENV_FILE="${APP_DIR}/.env.production"
+COMPOSE_FILE="${APP_DIR}/docker-compose.prod.yml"
+TMP_SECRET="/tmp/.ats_secret_$$.json"   # $$ = PID, unique per run
+
+# ─── 1. Ensure application directory exists ──────────────────────────────────
+log "📁 Preparing application directory: ${APP_DIR}"
+mkdir -p "${APP_DIR}"
+
+# ─── 2. Authenticate Docker with ECR using the EC2 instance role ─────────────
+log "🔐 Logging into Amazon ECR..."
 aws ecr get-login-password --region "${AWS_REGION}" | \
   docker login --username AWS --password-stdin "${ECR_REGISTRY}"
 
-# ─── 2. Pull secrets from AWS Secrets Manager ───────────────────────────────
+# ─── 3. Fetch secrets and write them to a protected env file ─────────────────
+# The env file is root-owned, mode 600. Docker Compose reads it via env_file:.
+# Secret values never appear in shell arguments, process listings, or logs.
 log "🔑 Fetching secrets from AWS Secrets Manager (${SECRET_NAME})..."
-SECRET_JSON=$(aws secretsmanager get-secret-value \
+
+# Fetch into a temp file with tight permissions, then parse with Python.
+# Using a file instead of a shell variable avoids the secret appearing in
+# /proc/<pid>/environ or command-line process listings.
+aws secretsmanager get-secret-value \
   --secret-id "${SECRET_NAME}" \
   --region "${AWS_REGION}" \
   --query SecretString \
-  --output text)
+  --output text > "${TMP_SECRET}"
+chmod 600 "${TMP_SECRET}"
 
-# Parse individual secret values using Python (available on Amazon Linux 2)
-MONGODB_URI=$(echo "$SECRET_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['MONGODB_URI'])")
-JWT_SECRET=$(echo "$SECRET_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['JWT_SECRET'])")
-JWT_EXPIRE=$(echo "$SECRET_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('JWT_EXPIRE','7d'))")
-GOOGLE_API_KEY=$(echo "$SECRET_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['GOOGLE_API_KEY'])")
-CLIENT_URL=$(echo "$SECRET_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('CLIENT_URL','http://localhost'))")
-GITHUB_TOKEN=$(echo "$SECRET_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('GITHUB_TOKEN',''))")
+# Parse and write the env file. Python never prints secret values.
+ENV_FILE="${ENV_FILE}" TMP_SECRET="${TMP_SECRET}" python3 - <<'PYEOF'
+import json, os, sys
 
-log "✅ Secrets loaded"
+tmp = os.environ['TMP_SECRET']
+env_file = os.environ['ENV_FILE']
 
-# ─── 3. Pull latest images from ECR ─────────────────────────────────────────
-log "📦 Pulling Docker images..."
+with open(tmp, 'r') as f:
+    data = json.load(f)
+
+required_keys = ['MONGODB_URI', 'JWT_SECRET', 'GOOGLE_API_KEY']
+optional_keys = ['JWT_EXPIRE', 'CLIENT_URL', 'GITHUB_TOKEN']
+all_keys = required_keys + optional_keys
+
+missing = [k for k in required_keys if not data.get(k)]
+if missing:
+    print(f'ERROR: Required secret keys are missing or empty: {missing}', file=sys.stderr)
+    sys.exit(1)
+
+lines = []
+for key in all_keys:
+    val = data.get(key, '')
+    if val:
+        lines.append(f'{key}={val}')
+
+with open(env_file, 'w') as f:
+    f.write('\n'.join(lines) + '\n')
+
+os.chmod(env_file, 0o600)
+print(f'Secrets written to {env_file} (mode 600, {len(lines)} keys)')
+PYEOF
+
+# Wipe the temp secret file immediately after parsing
+rm -f "${TMP_SECRET}"
+log "✅ Secrets loaded into ${ENV_FILE}"
+
+# ─── 4. Pull the three images from ECR ──────────────────────────────────────
+log "📦 Pulling Docker images (tag: ${IMAGE_TAG})..."
+docker pull "${ECR_REGISTRY}/${ECR_REPO_PYTHON}:${IMAGE_TAG}"
 docker pull "${ECR_REGISTRY}/${ECR_REPO_SERVER}:${IMAGE_TAG}"
 docker pull "${ECR_REGISTRY}/${ECR_REPO_CLIENT}:${IMAGE_TAG}"
-docker pull "${ECR_REGISTRY}/${ECR_REPO_PYTHON}:${IMAGE_TAG}"
-log "✅ Images pulled"
+log "✅ All images pulled"
 
-# ─── 4. Write docker-compose.prod.yml ────────────────────────────────────────
-log "📝 Writing production docker-compose file..."
-cat > /home/ec2-user/docker-compose.prod.yml <<EOF
+# ─── 5. Write production docker-compose.prod.yml ────────────────────────────
+# - Secrets are supplied via env_file (not hardcoded in YAML).
+# - Ports 3001 and 5000 use expose: (internal only, not published to host).
+# - Only port 80 is published; Nginx proxies all other traffic internally.
+# NOTE: The heredoc is intentionally unquoted (<<COMPOSE not <<'COMPOSE')
+#       so that shell variables like ${IMAGE_TAG} are expanded into the file.
+log "📝 Writing ${COMPOSE_FILE}..."
+cat > "${COMPOSE_FILE}" <<COMPOSE
 services:
+
   python-ai-service:
     image: ${ECR_REGISTRY}/${ECR_REPO_PYTHON}:${IMAGE_TAG}
     container_name: atsmaster-python-ai
     restart: unless-stopped
+    env_file:
+      - ${ENV_FILE}
     environment:
       PORT: "5000"
       FLASK_ENV: production
-      GOOGLE_API_KEY: "${GOOGLE_API_KEY}"
-      GITHUB_TOKEN: "${GITHUB_TOKEN}"
-    ports:
-      - "5000:5000"
+    expose:
+      - "5000"
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
       interval: 30s
@@ -77,25 +128,23 @@ services:
     image: ${ECR_REGISTRY}/${ECR_REPO_SERVER}:${IMAGE_TAG}
     container_name: atsmaster-server
     restart: unless-stopped
+    env_file:
+      - ${ENV_FILE}
     environment:
       PORT: "3001"
       NODE_ENV: production
-      MONGODB_URI: "${MONGODB_URI}"
-      JWT_SECRET: "${JWT_SECRET}"
-      JWT_EXPIRE: "${JWT_EXPIRE}"
-      CLIENT_URL: "${CLIENT_URL}"
       AI_SERVICE_URL: "http://python-ai-service:5000"
       PYTHON_SERVICE_URL: "http://python-ai-service:5000"
-    ports:
-      - "3001:3001"
+    expose:
+      - "3001"
     depends_on:
       python-ai-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"]
       interval: 30s
       timeout: 10s
-      start_period: 30s
+      start_period: 60s
       retries: 3
     networks:
       - atsmaster-net
@@ -110,10 +159,10 @@ services:
       server:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:80/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
       interval: 30s
       timeout: 5s
-      start_period: 10s
+      start_period: 15s
       retries: 3
     networks:
       - atsmaster-net
@@ -121,47 +170,54 @@ services:
 networks:
   atsmaster-net:
     driver: bridge
-EOF
+COMPOSE
 
-# ─── 5. Rolling deploy (zero-downtime) ───────────────────────────────────────
-COMPOSE_FILE="/home/ec2-user/docker-compose.prod.yml"
+log "✅ Compose file written to ${COMPOSE_FILE}"
 
-log "🔄 Deploying containers (rolling update)..."
-
-# Pull is already done, bring up new containers
+# ─── 6. Start / update containers ────────────────────────────────────────────
+log "🔄 Bringing containers up..."
 docker compose -f "${COMPOSE_FILE}" up -d --remove-orphans
+log "✅ Containers started (waiting for health checks...)"
 
-# Wait for services to be healthy
-log "⏳ Waiting for services to become healthy..."
-MAX_WAIT=120
+# ─── 7. Wait for all containers to report healthy ────────────────────────────
+log "⏳ Waiting for all 3 services to become healthy (up to 3 minutes)..."
+MAX_WAIT=180
 ELAPSED=0
-INTERVAL=10
+INTERVAL=15
+ALL_HEALTHY=false
 
-while [ $ELAPSED -lt $MAX_WAIT ]; do
-  HEALTHY=$(docker compose -f "${COMPOSE_FILE}" ps --format json 2>/dev/null | \
-    python3 -c "
-import sys, json
-lines = sys.stdin.read().strip().split('\n')
-total = len(lines)
-healthy = sum(1 for l in lines if l and json.loads(l).get('Health','') in ('healthy',''))
-print(healthy == total)
-" 2>/dev/null || echo "False")
+while [ "${ELAPSED}" -lt "${MAX_WAIT}" ]; do
+  sleep "${INTERVAL}"
+  ELAPSED=$((ELAPSED + INTERVAL))
 
-  if [ "$HEALTHY" = "True" ]; then
-    log "✅ All services healthy!"
+  # Count containers with "(healthy)" in their status line
+  HEALTHY=$(docker compose -f "${COMPOSE_FILE}" ps 2>/dev/null | grep -c "(healthy)" || true)
+  TOTAL=$(docker compose -f "${COMPOSE_FILE}" ps -q 2>/dev/null | wc -l | tr -d ' ')
+
+  log "   Healthy: ${HEALTHY}/${TOTAL} (${ELAPSED}s elapsed)"
+
+  if [ "${HEALTHY}" -eq 3 ]; then
+    ALL_HEALTHY=true
+    log "✅ All 3 services are healthy!"
     break
   fi
-  sleep $INTERVAL
-  ELAPSED=$((ELAPSED + INTERVAL))
-  log "   Still waiting... ($ELAPSED/${MAX_WAIT}s)"
 done
 
-# ─── 6. Clean up old/dangling images ────────────────────────────────────────
-log "🧹 Pruning dangling Docker images..."
+if [ "${ALL_HEALTHY}" = "false" ]; then
+  log "⚠️  Not all services are healthy after ${MAX_WAIT}s. Check logs with:"
+  log "    docker logs atsmaster-server --tail 50"
+  log "    docker logs atsmaster-python-ai --tail 50"
+  # Show current state but don't exit 1 — containers are running, may still converge
+  docker compose -f "${COMPOSE_FILE}" ps
+fi
+
+# ─── 8. Remove dangling images to reclaim disk space ─────────────────────────
+log "🧹 Pruning dangling images..."
 docker image prune -f
 
-# ─── 7. Status summary ───────────────────────────────────────────────────────
+# ─── 9. Final status ─────────────────────────────────────────────────────────
 log "📊 Container status:"
 docker compose -f "${COMPOSE_FILE}" ps
 
 log "🎉 Deployment complete! Tag: ${IMAGE_TAG}"
+log "🌐 Application is accessible on port 80."

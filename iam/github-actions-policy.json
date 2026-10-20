@@ -2,7 +2,7 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "ECRAuth",
+      "Sid": "ECRGetToken",
       "Effect": "Allow",
       "Action": [
         "ecr:GetAuthorizationToken"
@@ -10,7 +10,7 @@
       "Resource": "*"
     },
     {
-      "Sid": "ECRRepositoryAccess",
+      "Sid": "ECRPushPull",
       "Effect": "Allow",
       "Action": [
         "ecr:BatchCheckLayerAvailability",
@@ -21,40 +21,34 @@
         "ecr:UploadLayerPart",
         "ecr:CompleteLayerUpload",
         "ecr:DescribeRepositories",
-        "ecr:CreateRepository",
         "ecr:ListImages",
-        "ecr:DescribeImages",
-        "ecr:BatchDeleteImage"
+        "ecr:DescribeImages"
       ],
       "Resource": [
-        "arn:aws:ecr:ap-south-1:ACCOUNT_ID:repository/atsmaster-server",
-        "arn:aws:ecr:ap-south-1:ACCOUNT_ID:repository/atsmaster-client",
-        "arn:aws:ecr:ap-south-1:ACCOUNT_ID:repository/atsmaster-python-ai"
+        "arn:aws:ecr:ap-south-1:082287604856:repository/ats-master-server",
+        "arn:aws:ecr:ap-south-1:082287604856:repository/ats-master-client",
+        "arn:aws:ecr:ap-south-1:082287604856:repository/ats-master-python-ai"
       ]
     },
     {
       "Sid": "SSMSendCommand",
       "Effect": "Allow",
       "Action": [
-        "ssm:SendCommand",
-        "ssm:GetCommandInvocation",
-        "ssm:ListCommandInvocations",
-        "ssm:DescribeInstanceInformation"
+        "ssm:SendCommand"
       ],
       "Resource": [
-        "arn:aws:ec2:ap-south-1:ACCOUNT_ID:instance/INSTANCE_ID",
+        "arn:aws:ec2:ap-south-1:082287604856:instance/i-0df169a173cba0eb7",
         "arn:aws:ssm:ap-south-1::document/AWS-RunShellScript"
       ]
     },
     {
-      "Sid": "S3DeployBucket",
+      "Sid": "SSMGetResult",
       "Effect": "Allow",
       "Action": [
-        "s3:PutObject",
-        "s3:GetObject",
-        "s3:DeleteObject"
+        "ssm:GetCommandInvocation",
+        "ssm:ListCommandInvocations"
       ],
-      "Resource": "arn:aws:s3:::YOUR_DEPLOY_BUCKET/*"
+      "Resource": "*"
     }
   ]
 }
