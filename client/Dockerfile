@@ -1,12 +1,35 @@
-FROM node:20-alpine
+# ============================================================
+# Stage 1: Build the React/Vite app
+# ============================================================
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Copy dependency manifests first (layer caching)
 COPY package*.json ./
 RUN npm ci
 
+# Copy source and build
 COPY . .
+RUN npm run build
 
-EXPOSE 5173
+# ============================================================
+# Stage 2: Serve with Nginx
+# ============================================================
+FROM nginx:1.27-alpine AS production
 
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
+# Remove default nginx config
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Copy custom nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copy build output from builder stage
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://localhost:80/health || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]

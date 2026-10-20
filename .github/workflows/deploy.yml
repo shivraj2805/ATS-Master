@@ -1,0 +1,149 @@
+name: Deploy ATS Master to AWS ECR → EC2
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-1.amazonaws.com
+  ECR_REPO_SERVER: atsmaster-server
+  ECR_REPO_CLIENT: atsmaster-client
+  ECR_REPO_PYTHON: atsmaster-python-ai
+
+jobs:
+  # ─────────────────────────────────────────────
+  # JOB 1: Build & push all images to ECR
+  # ─────────────────────────────────────────────
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsDeployRole
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Generate image tag
+        id: meta
+        run: |
+          TAG="${{ github.sha }}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Image tag: ${TAG}"
+
+      # ── Build & push Server (Node.js) ──
+      - name: Build & push Server image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./server
+          file: ./server/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_SERVER }}:${{ steps.meta.outputs.tag }}
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_SERVER }}:latest
+          cache-from: type=registry,ref=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_SERVER }}:latest
+          cache-to: type=inline
+
+      # ── Build & push Client (React/Nginx) ──
+      - name: Build & push Client image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./client
+          file: ./client/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_CLIENT }}:${{ steps.meta.outputs.tag }}
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_CLIENT }}:latest
+          cache-from: type=registry,ref=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_CLIENT }}:latest
+          cache-to: type=inline
+
+      # ── Build & push Python AI Service ──
+      - name: Build & push Python AI Service image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./python-ai-service
+          file: ./python-ai-service/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_PYTHON }}:${{ steps.meta.outputs.tag }}
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_PYTHON }}:latest
+          cache-from: type=registry,ref=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO_PYTHON }}:latest
+          cache-to: type=inline
+
+  # ─────────────────────────────────────────────
+  # JOB 2: Deploy to EC2 via SSM
+  # ─────────────────────────────────────────────
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsDeployRole
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Copy deploy script to EC2 via S3
+        run: |
+          aws s3 cp ./scripts/deploy.sh s3://${{ secrets.DEPLOY_BUCKET }}/deploy.sh
+
+      - name: Deploy via SSM Run Command
+        run: |
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --parameters '{
+              "commands": [
+                "aws s3 cp s3://${{ secrets.DEPLOY_BUCKET }}/deploy.sh /home/ec2-user/deploy.sh",
+                "chmod +x /home/ec2-user/deploy.sh",
+                "IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }} AWS_REGION=${{ env.AWS_REGION }} ECR_REGISTRY=${{ env.ECR_REGISTRY }} ECR_REPO_SERVER=${{ env.ECR_REPO_SERVER }} ECR_REPO_CLIENT=${{ env.ECR_REPO_CLIENT }} ECR_REPO_PYTHON=${{ env.ECR_REPO_PYTHON }} SECRET_NAME=${{ secrets.SECRET_NAME }} bash /home/ec2-user/deploy.sh"
+              ],
+              "executionTimeout": ["600"]
+            }' \
+            --timeout-seconds 600 \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "SSM Command ID: $COMMAND_ID"
+
+          # Wait for command to finish
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "${{ secrets.EC2_INSTANCE_ID }}"
+
+          # Fetch and print output
+          aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
+            --query "{Status: Status, Output: StandardOutputContent, Error: StandardErrorContent}" \
+            --output table
+
+          # Fail if command didn't succeed
+          STATUS=$(aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
+            --query "Status" --output text)
+          if [ "$STATUS" != "Success" ]; then
+            echo "❌ SSM command failed with status: $STATUS"
+            exit 1
+          fi
+          echo "✅ Deployment successful!"
