@@ -50,6 +50,20 @@ aws ecr get-login-password --region "${AWS_REGION}" |
 log "Fetching secrets from AWS Secrets Manager..."
 
 aws secretsmanager get-secret-value \
+    --secret-id "${SECRET_NAME}" \
+    --region "${AWS_REGION}" \
+    --query SecretString \
+    --output text > "${TMP_SECRET}"
+
+# 3. Authenticate Docker with ECR
+log "Logging into Amazon ECR..."
+aws ecr get-login-password --region "${AWS_REGION}" |
+    docker login --username AWS --password-stdin "${ECR_REGISTRY}"
+
+# 4. Fetch production secrets
+log "Fetching secrets from AWS Secrets Manager..."
+
+aws secretsmanager get-secret-value \
   --secret-id "${SECRET_NAME}" \
   --region "${AWS_REGION}" \
   --query SecretString \
@@ -210,6 +224,11 @@ while [ "${ELAPSED}" -lt "${MAX_WAIT}" ]; do
 
     # Compose versions may emit either a JSON array or one JSON object per line.
     HEALTHY="$(
+        docker compose -f "${COMPOSE_FILE}" ps --format json |
+        python3 -c '
+import json
+import sys
+
 raw = sys.stdin.read().strip()
 if not raw:
     print(0)
