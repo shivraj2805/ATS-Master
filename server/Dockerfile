@@ -1,7 +1,8 @@
+
 # ============================================================
 # Stage 1: Install dependencies
 # ============================================================
-FROM node:20-alpine AS deps
+FROM node:20-bookworm-slim AS deps
 
 WORKDIR /app
 
@@ -14,11 +15,11 @@ RUN npm ci --omit=dev && npm cache clean --force
 # ============================================================
 # Stage 2: Production image
 # ============================================================
-FROM node:20-alpine AS production
+FROM node:20-bookworm-slim AS production
 
 # Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodeuser -u 1001 -G nodejs
+RUN groupadd --gid 1001 nodejs && \
+    useradd --uid 1001 --gid nodejs --create-home nodeuser
 
 WORKDIR /app
 
@@ -37,6 +38,6 @@ USER nodeuser
 EXPOSE 3001
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3001/health', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
+    CMD node -e "require('http').get('http://localhost:3001/health', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
 
 CMD ["node", "index.js"]
